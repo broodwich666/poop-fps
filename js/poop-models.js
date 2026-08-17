@@ -72,32 +72,39 @@ export function createAngryFace(scale = 1) {
   const face = new THREE.Group();
   const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.32 });
   const black = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.45 });
-  const browMat = new THREE.MeshStandardMaterial({ color: 0x1a0c04, roughness: 0.7 });
+  const browMat = new THREE.MeshStandardMaterial({ color: 0x120804, roughness: 0.65 });
 
-  const eyeRadius = 0.155 * scale;
-  const eyeY = 0.72 * scale;
-  const eyeZ = 0.5 * scale;
-  const eyeSpacing = 0.2 * scale;
+  const eyeRadius = 0.17 * scale;
+  const eyeY = 0.7 * scale;
+  const eyeZ = 0.52 * scale;
+  const eyeSpacing = 0.205 * scale;
 
   [-1, 1].forEach((side) => {
     const x = side * eyeSpacing;
     const eye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 14, 14), white);
-    eye.scale.set(1, 1.05, 0.72);
+    eye.scale.set(1, 1.08, 0.7);
     eye.position.set(x, eyeY, eyeZ);
     face.add(eye);
 
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.42, 10, 10), black);
-    pupil.position.set(x + side * 0.01 * scale, eyeY - 0.015 * scale, eyeZ + eyeRadius * 0.42);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.4, 10, 10), black);
+    pupil.position.set(x + side * 0.012 * scale, eyeY - 0.02 * scale, eyeZ + eyeRadius * 0.38);
     face.add(pupil);
 
     const brow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.24 * scale, 0.055 * scale, 0.05 * scale),
+      new THREE.BoxGeometry(0.34 * scale, 0.1 * scale, 0.09 * scale),
       browMat
     );
-    brow.position.set(x, eyeY + 0.145 * scale, eyeZ + 0.02 * scale);
-    brow.rotation.z = side > 0 ? -0.62 : 0.62;
+    brow.position.set(x, eyeY + 0.155 * scale, eyeZ + 0.09 * scale);
+    brow.rotation.z = side > 0 ? -0.72 : 0.72;
     face.add(brow);
   });
+
+  const mouth = new THREE.Mesh(
+    new THREE.TorusGeometry(0.11 * scale, 0.024 * scale, 8, 16, Math.PI),
+    black
+  );
+  mouth.position.set(0, 0.5 * scale, eyeZ);
+  face.add(mouth);
 
   return face;
 }
@@ -109,7 +116,7 @@ export function createEnemyPoop(sizeScale = 1) {
   group.add(body);
 
   const face = createAngryFace(sizeScale);
-  face.position.z = 0.02 * sizeScale;
+  face.position.z = 0.1 * sizeScale;
   group.add(face);
 
   group.userData.body = body;

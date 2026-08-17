@@ -76,7 +76,7 @@ body.is-playing {
 .menu-card {
   pointer-events: auto;
   width: min(520px, calc(100% - 2.5rem));
-  padding: 1.6rem 2.1rem 1.8rem;
+  padding: 2rem 2.1rem 1.8rem;
   background:
     linear-gradient(180deg, rgba(92, 56, 24, 0.22), transparent 40%),
     repeating-linear-gradient(
@@ -97,14 +97,19 @@ body.is-playing {
 
 .logo {
   position: relative;
+  padding-top: 0.35rem;
 }
 
 .logo-coil {
-  width: 52px;
-  height: 52px;
-  display: block;
-  margin: 0 auto -0.35rem;
-  filter: drop-shadow(0 4px 0 #2a1408);
+  position: absolute;
+  left: 50%;
+  top: -0.15rem;
+  width: 62px;
+  height: 62px;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 5px 0 #2a1408);
+  z-index: 3;
+  pointer-events: none;
 }
 
 .logo-row {
@@ -115,8 +120,8 @@ body.is-playing {
 }
 
 .mascot {
-  width: 58px;
-  height: 58px;
+  width: 70px;
+  height: 70px;
   flex-shrink: 0;
   filter: drop-shadow(0 5px 0 #2a1408);
 }
@@ -181,15 +186,16 @@ body.is-playing {
 }
 
 .splat {
-  width: 22px;
-  height: 16px;
+  width: 28px;
+  height: 20px;
   background: #5c3010;
-  border-radius: 60% 40% 55% 45%;
+  border-radius: 70% 40% 60% 45%;
   box-shadow:
-    8px 4px 0 -4px #4a2810,
-    -7px 3px 0 -5px #4a2810,
-    2px 8px 0 -6px #3d220f;
-  opacity: 0.9;
+    10px 5px 0 -5px #4a2810,
+    -9px 4px 0 -6px #4a2810,
+    3px 10px 0 -7px #3d220f,
+    -4px -3px 0 -8px #3d220f;
+  opacity: 0.95;
 }
 
 .tagline {
@@ -449,28 +455,28 @@ body.is-playing {
 
 .go-peek {
   position: absolute;
-  width: 88px;
-  height: 88px;
+  width: 120px;
+  height: 120px;
   z-index: 2;
   filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.45));
   pointer-events: none;
 }
 
 .peek-left {
-  left: -0.35rem;
-  top: 38%;
+  left: -1.55rem;
+  top: 30%;
   transform: rotate(-18deg);
 }
 
 .peek-right-top {
-  right: -0.2rem;
-  top: 18%;
+  right: -1.35rem;
+  top: 10%;
   transform: rotate(16deg) scaleX(-1);
 }
 
 .peek-right-bot {
-  right: 0.4rem;
-  bottom: 12%;
+  right: -0.85rem;
+  bottom: 8%;
   transform: rotate(10deg);
 }
 
@@ -574,9 +580,9 @@ body.is-playing {
   color: #fff;
 }
 
-#stats .stat:nth-child(1) strong { color: #ffd54f; font-size: 1.45rem; }
-#stats .stat:nth-child(2) strong { color: #64b5f6; font-size: 1.45rem; }
-#stats .stat:nth-child(3) strong { color: #ef5350; font-size: 1.45rem; }
+#stats .stat-score { color: #ffd54f; font-size: 1.45rem; }
+#stats .stat-wave { color: #64b5f6; font-size: 1.45rem; }
+#stats .stat-kills { color: #ef5350; font-size: 1.45rem; }
 
 #stats strong {
   font-weight: 900;

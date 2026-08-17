@@ -107,27 +107,26 @@ function makeSignTexture() {
   ctx.lineWidth = 4;
   ctx.strokeRect(22, 22, 724, 212);
 
-  drawPoopIcon(ctx, 118, 128, 70);
+  drawPoopIcon(ctx, 108, 128, 86);
 
-  ctx.font = "900 72px Nunito, Arial Black, sans-serif";
-  ctx.fillStyle = "#5c3010";
+  ctx.font = "900 92px Arial Black, Arial, sans-serif";
+  ctx.fillStyle = "#3d1e08";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("POOP ARENA", 188, 134);
-  ctx.fillStyle = "#8b4a1c";
-  ctx.fillText("POOP ARENA", 186, 130);
+  ctx.fillText("POOP ARENA", 178, 138);
+  ctx.fillStyle = "#6b3410";
+  ctx.fillText("POOP ARENA", 174, 132);
 
   return new THREE.CanvasTexture(canvas);
 }
 
 function createCloud(x, y, z, scale = 1) {
   const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({
+  const mat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
-    roughness: 1,
-    metalness: 0,
     transparent: true,
-    opacity: 0.96,
+    opacity: 0.94,
+    depthWrite: false,
   });
   const blobs = [
     [0, 0, 0, 1.35],
@@ -231,7 +230,7 @@ export function buildMockupArena(scene, arenaSize = 40) {
   });
 
   const sign = new THREE.Mesh(
-    new THREE.PlaneGeometry(8.2, 2.5),
+    new THREE.PlaneGeometry(12.5, 3.6),
     new THREE.MeshStandardMaterial({ roughness: 0.78 })
   );
   const applySign = () => {
@@ -243,34 +242,42 @@ export function buildMockupArena(scene, arenaSize = 40) {
   };
   applySign();
   if (document.fonts?.ready) document.fonts.ready.then(applySign);
-  sign.position.set(0, 3.4, -arenaSize + 0.55);
+  sign.position.set(0, 3.9, -arenaSize + 0.55);
   scene.add(sign);
 
   const postMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.9 });
-  const signPostL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.8, 0.22), postMat);
-  signPostL.position.set(-3.9, 1.9, -arenaSize + 0.42);
+  const signPostL = new THREE.Mesh(new THREE.BoxGeometry(0.28, 4.4, 0.28), postMat);
+  signPostL.position.set(-5.8, 2.2, -arenaSize + 0.42);
   const signPostR = signPostL.clone();
-  signPostR.position.x = 3.9;
+  signPostR.position.x = 5.8;
   scene.add(signPostL, signPostR);
 
   [
-    [-18, 22, -12],
-    [14, 24, -20],
-    [-8, 26, 16],
-    [22, 23, 8],
-    [0, 28, 0],
-    [-24, 25, 10],
-    [10, 27, -6],
-  ].forEach(([x, y, z]) => scene.add(createCloud(x, y, z, 1.5 + Math.random() * 0.55)));
+    [-10, 16, -14],
+    [12, 17, -22],
+    [-6, 18, -28],
+    [18, 15, -8],
+    [2, 19, -18],
+    [-20, 16, -6],
+    [8, 17, 4],
+  ].forEach(([x, y, z]) => scene.add(createCloud(x, y, z, 1.7 + Math.random() * 0.5)));
 
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 22; i++) {
     const pos = new THREE.Vector3(
       (Math.random() - 0.5) * arenaSize * 1.7,
       0,
       (Math.random() - 0.5) * arenaSize * 1.7
     );
-    scene.add(createMockupSplat(pos, { permanent: true, life: Infinity, scale: 0.7 + Math.random() * 0.8 }));
+    scene.add(createMockupSplat(pos, { permanent: true, life: Infinity, scale: 0.7 + Math.random() * 0.9 }));
   }
+  [
+    new THREE.Vector3(-1.2, 0, -7),
+    new THREE.Vector3(2.4, 0, -9.5),
+    new THREE.Vector3(-3.5, 0, -12),
+    new THREE.Vector3(1.1, 0, -14),
+  ].forEach((pos) => {
+    scene.add(createMockupSplat(pos, { permanent: true, life: Infinity, scale: 1.1 + Math.random() * 0.4 }));
+  });
 
   const wallSplats = [
     new THREE.Vector3(-6, 1.6, -arenaSize + 0.22),

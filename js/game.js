@@ -165,15 +165,15 @@ function clearScenery() {
 function addMenuScenery() {
   clearScenery();
   const spots = [
-    [-4.2, -7.2, 1.25],
-    [3.4, -11.5, 0.95],
-    [-1.2, -16.5, 1.45],
-    [6.1, -9.4, 0.78],
+    [-3.2, -8.2, 1.15],
+    [2.8, -11.2, 0.9],
+    [-0.6, -15.8, 1.35],
+    [5.2, -9.6, 0.75],
   ];
   spots.forEach(([x, z, s], i) => {
     const poop = createEnemyPoop(s);
     poop.position.set(x, 0, z);
-    poop.lookAt(2.5, 0.4, 10);
+    poop.lookAt(1.15, 0.5, 5.2);
     poop.userData.wobble = i * 1.3;
     scene.add(poop);
     scenery.push(poop);
@@ -181,8 +181,8 @@ function addMenuScenery() {
 }
 
 function poseMenuCamera() {
-  camera.position.set(2.5, 2.35, 10);
-  camera.lookAt(-1.5, 0.9, -9);
+  camera.position.set(1.15, 1.9, 5.2);
+  camera.lookAt(0.15, 1.45, -16);
 }
 
 function resetGame() {

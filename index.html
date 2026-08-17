@@ -11,6 +11,12 @@
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true">
+    <symbol id="poop-swirl" viewBox="0 0 64 64">
+      <ellipse cx="32" cy="58" rx="16" ry="4" fill="rgba(0,0,0,0.28)" />
+      <path d="M32 8c8 6 14 12 14 20 8 2 14 9 12 17-2 9-12 15-26 15S8 54 6 45c-2-8 4-15 12-17 0-8 6-14 14-20z" fill="#8B4A1C" />
+      <path d="M32 8c6 5 11 10 12 17 2 0 4-1 5-1-1-7-8-13-17-16z" fill="#A65C28" />
+      <path d="M22 28c8-2 18 2 20 10" fill="none" stroke="#6b3414" stroke-width="3" stroke-linecap="round" />
+    </symbol>
     <symbol id="poop-smile" viewBox="0 0 64 64">
       <ellipse cx="32" cy="58" rx="16" ry="4" fill="rgba(0,0,0,0.28)" />
       <path d="M32 7c7 6 13 11 15 19 7 1 13 8 11 16-2 9-11 16-26 16S8 51 6 42c-2-8 4-15 11-16 2-8 8-13 15-19z" fill="#8B4A1C" />
@@ -115,7 +121,7 @@
     <div id="game-over" class="hidden">
       <svg class="go-peek peek-left" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smirk" /></svg>
       <svg class="go-peek peek-right-top" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smirk" /></svg>
-      <svg class="go-peek peek-right-bot" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smile" /></svg>
+      <svg class="go-peek peek-right-bot" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smirk" /></svg>
       <div class="go-board">
         <svg class="toilet-mark" viewBox="0 0 80 90" aria-hidden="true"><use href="#icon-toilet" /></svg>
         <h2 class="go-title">YOU GOT FLUSHED!</h2>
@@ -154,9 +160,9 @@
       <span id="health-text">100</span>
     </div>
     <div id="stats">
-      <div class="stat"><span class="label">Score</span><strong id="score">0</strong></div>
-      <div class="stat"><span class="label">Wave</span><strong id="wave">1</strong></div>
-      <div class="stat"><span class="label">Kills</span><strong id="kills">0</strong></div>
+      <div class="stat"><span class="label">Score</span><strong id="score" class="stat-score">0</strong></div>
+      <div class="stat"><span class="label">Wave</span><strong id="wave" class="stat-wave">1</strong></div>
+      <div class="stat"><span class="label">Kills</span><strong id="kills" class="stat-kills">0</strong></div>
     </div>
     <div id="crosshair"><span></span><span></span></div>
   </div>
