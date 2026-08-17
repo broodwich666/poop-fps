@@ -1,0 +1,218 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1208;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #f5e6c8;
+  cursor: none;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(42, 28, 12, 0.92), rgba(10, 6, 2, 0.98));
+  pointer-events: auto;
+}
+
+#overlay.playing {
+  background: transparent;
+  pointer-events: none;
+}
+
+#menu, #game-over {
+  text-align: center;
+  padding: 2.5rem 3rem;
+  background: rgba(62, 40, 18, 0.95);
+  border: 3px solid #8b5a2b;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  max-width: 480px;
+}
+
+#menu h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #d4a574;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.tagline {
+  margin-bottom: 1.5rem;
+  opacity: 0.85;
+  font-style: italic;
+}
+
+.controls {
+  margin-bottom: 1.5rem;
+  text-align: left;
+  display: inline-block;
+}
+
+.controls p {
+  margin: 0.4rem 0;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 5rem;
+  padding: 0.15rem 0.5rem;
+  background: #2a1a0c;
+  border: 1px solid #6b4423;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+button {
+  padding: 0.85rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2a1a0c;
+  background: linear-gradient(180deg, #c9956a, #8b5a2b);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.15s, filter 0.15s;
+}
+
+button:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+#game-over h2 {
+  color: #e07070;
+  margin-bottom: 1rem;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#health-panel {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem 0.45rem 0.55rem;
+  background: linear-gradient(180deg, rgba(92, 58, 24, 0.92), rgba(62, 40, 18, 0.95));
+  border: 3px solid #8b5a2b;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+#health-panel .heart {
+  font-size: 1.1rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+#health-bar {
+  width: 140px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+#health-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
+  transition: width 0.2s;
+  border-radius: 999px;
+}
+
+#health-text {
+  font-weight: 800;
+  font-size: 0.95rem;
+  min-width: 2rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+#stats {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  gap: 1.25rem;
+  padding: 0.55rem 1rem;
+  background: linear-gradient(180deg, rgba(92, 58, 24, 0.92), rgba(62, 40, 18, 0.95));
+  border: 3px solid #8b5a2b;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+#stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 3.5rem;
+}
+
+#stats .label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+}
+
+#stats .stat:nth-child(1) strong { color: #ffd54f; font-size: 1.25rem; }
+#stats .stat:nth-child(2) strong { color: #64b5f6; font-size: 1.25rem; }
+#stats .stat:nth-child(3) strong { color: #ef5350; font-size: 1.25rem; }
+
+#crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+}
+
+#crosshair span {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+#crosshair span:first-child {
+  width: 2px;
+  height: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+#crosshair span:last-child {
+  height: 2px;
+  width: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+}

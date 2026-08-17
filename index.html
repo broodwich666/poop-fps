@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poop Shooter FPS</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="overlay">
+    <div id="menu">
+      <h1>💩 Poop Shooter FPS 💩</h1>
+      <p class="tagline">Shoot poop. Destroy enemy poop. Survive.</p>
+      <div class="controls">
+        <p><kbd>W A S D</kbd> Move</p>
+        <p><kbd>Mouse</kbd> Look &amp; aim</p>
+        <p><kbd>Click</kbd> Shoot poop</p>
+        <p><kbd>Shift</kbd> Sprint</p>
+      </div>
+      <button id="start-btn">Enter the Brown Zone</button>
+    </div>
+    <div id="game-over" class="hidden">
+      <h2>You Got Flushed!</h2>
+      <p>Score: <span id="final-score">0</span></p>
+      <button id="restart-btn">Try Again</button>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="health-panel">
+      <span class="heart" aria-hidden="true">❤️</span>
+      <div id="health-bar">
+        <div id="health-fill"></div>
+      </div>
+      <span id="health-text">100</span>
+    </div>
+    <div id="stats">
+      <div class="stat"><span class="label">Score</span><strong id="score">0</strong></div>
+      <div class="stat"><span class="label">Wave</span><strong id="wave">1</strong></div>
+      <div class="stat"><span class="label">Kills</span><strong id="kills">0</strong></div>
+    </div>
+    <div id="crosshair"><span></span><span></span></div>
+  </div>
+
+  <canvas id="game-canvas"></canvas>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>
