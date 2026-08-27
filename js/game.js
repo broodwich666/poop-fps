@@ -79,6 +79,9 @@ const loadoutStart = document.getElementById("loadout-start");
 const loadoutGuns = document.getElementById("loadout-guns");
 const loadoutExtras = document.getElementById("loadout-extras");
 const loadoutSummary = document.getElementById("loadout-summary");
+const godBadge = document.getElementById("god-badge");
+const devPanel = document.getElementById("dev-panel");
+const devMenuBtn = document.getElementById("dev-menu-btn");
 const minimapCanvas = document.getElementById("minimap");
 const goMinimapCanvas = document.getElementById("go-minimap");
 const goWaveText = document.getElementById("go-wave-text");
@@ -100,6 +103,9 @@ let activeWeaponId = "rifle";
 const weaponMags = { rifle: 12, shotgun: 6, gatling: 60 };
 let gatlingSpin = 0;
 let shootHeld = false;
+let devOpen = false;
+let cheatGod = false;
+let cheatInfiniteAmmo = false;
 
 const ARENA_SIZE = 40;
 const PLAYER_HEIGHT = 1.15;
@@ -648,7 +654,7 @@ function initScene() {
   controls.addEventListener("unlock", () => {
     pointerLocked = false;
     document.body.classList.remove("is-playing");
-    if (playing && state.health > 0 && !rewarding) {
+    if (playing && state.health > 0 && !rewarding && !devOpen) {
       overlay.classList.remove("playing");
       pausePanel.classList.remove("hidden");
     }
@@ -660,7 +666,7 @@ function initScene() {
 }
 
 function onMouseLook(e) {
-  if (!playing || !pointerLocked || mode !== "play" || rewarding) return;
+  if (!playing || !pointerLocked || mode !== "play" || rewarding || devOpen) return;
   lookYaw -= e.movementX * LOOK_SENS;
   lookPitch -= e.movementY * LOOK_SENS;
   lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
@@ -868,7 +874,14 @@ function spawnEnemyAtEdge() {
 }
 
 function tryReload() {
-  if (rewarding || reloading) return;
+  if (rewarding || reloading || devOpen) return;
+  if (cheatInfiniteAmmo) {
+    state.mag = magCapacity();
+    state.reserve = Math.max(state.reserve, MAX_RESERVE);
+    syncMagFromState();
+    updateHud();
+    return;
+  }
   if (state.mag >= magCapacity() || state.reserve <= 0) {
     if (state.reserve <= 0 && state.mag <= 0) {
       const now = performance.now() / 1000;
@@ -882,7 +895,6 @@ function tryReload() {
   reloading = true;
   reloadTimer = reloadDuration();
   sfxReload();
-  // Kick gun pose slightly
   weaponRecoil = Math.max(weaponRecoil, 0.35);
   updateHud();
 }
@@ -1020,9 +1032,10 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
 }
 
 function shoot() {
-  if (rewarding || loadoutOpen) return;
+  if (rewarding || loadoutOpen || devOpen) return;
   const now = performance.now() / 1000;
-  if (reloading) return;
+  if (reloading && !cheatInfiniteAmmo) return;
+  if (cheatInfiniteAmmo && reloading) cancelReload(false);
   const wpn = activeWeapon();
 
   // Gatling wind-up: must be held long enough
@@ -1031,7 +1044,7 @@ function shoot() {
   }
 
   if (now - lastShot < fireInterval()) return;
-  if (state.mag <= 0) {
+  if (!cheatInfiniteAmmo && state.mag <= 0) {
     if (now - lastEmptyClick > 0.22) {
       lastEmptyClick = now;
       sfxEmpty();
@@ -1041,8 +1054,13 @@ function shoot() {
     return;
   }
   lastShot = now;
-  state.mag -= wpn.ammoPerShot || 1;
-  if (state.mag < 0) state.mag = 0;
+  if (cheatInfiniteAmmo) {
+    state.mag = magCapacity();
+    state.reserve = Math.max(state.reserve, MAX_RESERVE);
+  } else {
+    state.mag -= wpn.ammoPerShot || 1;
+    if (state.mag < 0) state.mag = 0;
+  }
   syncMagFromState();
   weaponRecoil = wpn.recoil || 1;
   muzzleFlash = 1;
@@ -1069,9 +1087,11 @@ function shoot() {
   }
   if (Math.random() < mods.echoChance && wpn.id === "rifle") {
     setTimeout(() => {
-      if (!playing || rewarding || reloading || state.mag <= 0) return;
-      state.mag--;
-      syncMagFromState();
+      if (!playing || rewarding || reloading || (!cheatInfiniteAmmo && state.mag <= 0)) return;
+      if (!cheatInfiniteAmmo) {
+        state.mag--;
+        syncMagFromState();
+      }
       updateHud();
       fireOneProjectile((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.02);
       weaponRecoil = 0.7;
@@ -1080,7 +1100,7 @@ function shoot() {
     }, 55);
   }
 
-  if (state.mag <= 0 && state.reserve > 0) {
+  if (!cheatInfiniteAmmo && state.mag <= 0 && state.reserve > 0) {
     setTimeout(() => {
       if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
     }, 180);
@@ -1173,6 +1193,7 @@ function damageEnemy(enemy, hitPoint, dmg = 1) {
 }
 
 function hurtPlayer(amount) {
+  if (cheatGod) return;
   const taken = amount * mods.damageTaken;
   state.health -= taken;
   state.lastHealth = Math.max(0, state.health);
@@ -1189,6 +1210,7 @@ function hurtPlayer(amount) {
 function endGame() {
   playing = false;
   hideRewardUI(false);
+  closeDevPanel({ relockHint: false });
   controls.unlock();
   overlay.classList.remove("playing");
   overlay.classList.add("is-gameover");
@@ -1240,6 +1262,7 @@ function startGame() {
 function returnToMenu() {
   playing = false;
   hideRewardUI(false);
+  closeDevPanel({ relockHint: false });
   loadoutOpen = false;
   loadoutPanel?.classList.add("hidden");
   clearCombat();
@@ -1765,6 +1788,145 @@ function closeLoadout() {
   updateLoadoutSummary();
 }
 
+function updateDevPanelUI() {
+  if (!devPanel) return;
+  devPanel.querySelectorAll(".dev-btn").forEach((btn) => {
+    const id = btn.dataset.cheat;
+    const on =
+      (id === "god" && cheatGod) ||
+      (id === "ammo" && cheatInfiniteAmmo);
+    btn.classList.toggle("on", Boolean(on));
+  });
+  if (godBadge) godBadge.classList.toggle("hidden", !cheatGod);
+}
+
+function openDevPanel() {
+  if (rewarding || loadoutOpen) return;
+  if (mode === "gameover") return;
+  devOpen = true;
+  updateDevPanelUI();
+  devPanel?.classList.remove("hidden");
+  // Ensure HUD is visible so the corner panel can show from menu too
+  hud?.classList.remove("hidden");
+  playHud?.classList.remove("hidden");
+  pausePanel.classList.add("hidden");
+  shootHeld = false;
+  keys._mouseDown = false;
+  if (pointerLocked) {
+    try { controls.unlock(); } catch (_) { /* ignore */ }
+  }
+  playTone({ freq: 420, dur: 0.05, type: "triangle", gain: 0.03 });
+}
+
+function closeDevPanel({ relockHint = true } = {}) {
+  if (!devOpen && devPanel?.classList.contains("hidden")) return;
+  devOpen = false;
+  devPanel?.classList.add("hidden");
+  if (relockHint && playing && mode === "play" && state.health > 0 && !rewarding) {
+    pausePanel.classList.remove("hidden");
+    overlay.classList.remove("playing");
+  } else if (!playing && mode === "menu") {
+    // From title menu — leave landing UI as-is
+  }
+  playTone({ freq: 280, dur: 0.045, type: "triangle", gain: 0.025 });
+}
+
+function toggleDevPanel() {
+  if (devOpen) closeDevPanel({ relockHint: playing && mode === "play" });
+  else openDevPanel();
+}
+
+function cheatToggleGod() {
+  cheatGod = !cheatGod;
+  updateDevPanelUI();
+  showPickupToast(cheatGod ? "GOD MODE ON" : "GOD MODE OFF");
+  sfxPowerUp();
+}
+
+function cheatToggleInfiniteAmmo() {
+  cheatInfiniteAmmo = !cheatInfiniteAmmo;
+  if (cheatInfiniteAmmo) {
+    cancelReload(false);
+    state.mag = magCapacity();
+    state.reserve = Math.max(state.reserve, MAX_RESERVE);
+    syncMagFromState();
+    updateHud();
+  }
+  updateDevPanelUI();
+  showPickupToast(cheatInfiniteAmmo ? "INFINITE AMMO ON" : "INFINITE AMMO OFF");
+  sfxPowerUp();
+}
+
+function cheatUnlockAllGuns() {
+  WEAPON_IDS.forEach((id) => {
+    ownedWeapons.add(id);
+    weaponMags[id] = WEAPONS[id].magSize + Math.max(0, mods.magBonus | 0);
+  });
+  state.reserve = Math.max(state.reserve, MAX_RESERVE);
+  if (!ownedWeapons.has(activeWeaponId)) activeWeaponId = "shotgun";
+  loadMagIntoState();
+  equipWeapon(activeWeaponId, { announce: false, refill: true });
+  WEAPON_IDS.forEach((id) => {
+    weaponMags[id] = WEAPONS[id].magSize + Math.max(0, mods.magBonus | 0);
+  });
+  loadMagIntoState();
+  updateHud();
+  showPickupToast("ALL GUNS UNLOCKED");
+  sfxWeaponSwap();
+}
+
+function cheatSkipWave() {
+  if (!playing || mode !== "play") {
+    showPickupToast("START A MATCH FIRST");
+    return;
+  }
+  if (rewarding) {
+    confirmAllRewards();
+    return;
+  }
+  enemies.forEach((e) => scene.remove(e));
+  enemies = [];
+  state.enemiesSpawned = state.enemiesToSpawn;
+  if (state.wave >= MAX_WAVES) {
+    state.score += 500;
+    showPickupToast("FINAL WAVE CLEARED");
+    closeDevPanel({ relockHint: false });
+    endGame();
+    return;
+  }
+  closeDevPanel({ relockHint: false });
+  openRewardUI();
+  showPickupToast("WAVE SKIPPED");
+}
+
+function cheatHealAndRefill() {
+  state.health = maxHealth();
+  cancelReload(false);
+  state.mag = magCapacity();
+  state.reserve = Math.max(state.reserve, MAX_RESERVE);
+  WEAPON_IDS.forEach((id) => {
+    if (ownedWeapons.has(id)) {
+      weaponMags[id] = WEAPONS[id].magSize + Math.max(0, mods.magBonus | 0);
+    }
+  });
+  syncMagFromState();
+  updateHud();
+  showPickupToast("HEALED + AMMO FULL");
+  sfxAmmoPickup();
+}
+
+function runDevCheat(id) {
+  switch (id) {
+    case "god": cheatToggleGod(); break;
+    case "ammo": cheatToggleInfiniteAmmo(); break;
+    case "guns": cheatUnlockAllGuns(); break;
+    case "wave": cheatSkipWave(); break;
+    case "heal": cheatHealAndRefill(); break;
+    default: break;
+  }
+  updateDevPanelUI();
+}
+
 function confirmLoadout(startMatch = false) {
   updateLoadoutSummary();
   sfxPowerUp();
@@ -1822,6 +1984,11 @@ function pollGamepad(dt) {
     return;
   }
 
+  if (devOpen) {
+    if (padBtnEdge("devBack", padBtn(pad, 1) || padBtn(pad, 8))) closeDevPanel();
+    return;
+  }
+
   // Right stick look — axes 2/3 standard; some browsers use 3/4
   const rx = axisDZ(pad.axes[2] ?? 0);
   const ry = axisDZ(pad.axes[3] ?? pad.axes[4] ?? 0);
@@ -1856,7 +2023,7 @@ function pollGamepad(dt) {
   // Start (9) pause / unlock
   if (padBtnEdge("start", padBtn(pad, 9))) {
     if (playing && pointerLocked) controls.unlock();
-    else if (playing && !pointerLocked && state.health > 0 && !rewarding) controls.lock();
+    else if (playing && !pointerLocked && state.health > 0 && !rewarding && !devOpen) controls.lock();
   }
 }
 
@@ -1925,6 +2092,24 @@ function animate() {
 
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
+
+  // DEV panel toggle — backtick only (never KeyD / WASD)
+  if (e.code === "Backquote" || e.code === "IntlBackslash") {
+    e.preventDefault();
+    toggleDevPanel();
+    return;
+  }
+
+  if (devOpen) {
+    if (e.code === "Escape") { e.preventDefault(); closeDevPanel(); return; }
+    if (e.code === "Digit1") { e.preventDefault(); runDevCheat("god"); return; }
+    if (e.code === "Digit2") { e.preventDefault(); runDevCheat("ammo"); return; }
+    if (e.code === "Digit3") { e.preventDefault(); runDevCheat("guns"); return; }
+    if (e.code === "Digit4") { e.preventDefault(); runDevCheat("wave"); return; }
+    if (e.code === "Digit5") { e.preventDefault(); runDevCheat("heal"); return; }
+    return;
+  }
+
   if (loadoutOpen) {
     if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); nudgeLoadout(-1); }
     if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); nudgeLoadout(1); }
@@ -1957,7 +2142,6 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.code === "KeyR" && playing && pointerLocked) tryReload();
   if (e.code === "KeyQ" && playing) { e.preventDefault(); cycleOwnedWeapon(-1); }
-  if (e.code === "KeyE" && playing && !e.repeat) { /* optional */ }
   if (e.code === "Digit1" && playing && ownedWeapons.has("rifle")) equipWeapon("rifle");
   if (e.code === "Digit2" && playing && ownedWeapons.has("shotgun")) equipWeapon("shotgun");
   if (e.code === "Digit3" && playing && ownedWeapons.has("gatling")) equipWeapon("gatling");
@@ -1974,7 +2158,7 @@ window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
 });
 window.addEventListener("mousedown", (e) => {
-  if (rewarding || loadoutOpen) return;
+  if (rewarding || loadoutOpen || devOpen) return;
   if (e.button === 0) {
     keys._mouseDown = true;
     shootHeld = true;
@@ -1988,7 +2172,7 @@ window.addEventListener("mouseup", (e) => {
   }
 });
 window.addEventListener("wheel", (e) => {
-  if (!playing || rewarding || loadoutOpen) return;
+  if (!playing || rewarding || loadoutOpen || devOpen) return;
   if (e.deltaY > 0) cycleOwnedWeapon(1);
   else if (e.deltaY < 0) cycleOwnedWeapon(-1);
 }, { passive: true });
@@ -2010,6 +2194,17 @@ startBtn.addEventListener("click", (e) => {
 loadoutBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   openLoadout();
+});
+devMenuBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  ensureAudio();
+  openDevPanel();
+});
+devPanel?.querySelectorAll(".dev-btn").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    runDevCheat(btn.dataset.cheat);
+  });
 });
 loadoutBack?.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -2037,7 +2232,7 @@ rewardConfirm?.addEventListener("click", (e) => {
   confirmAllRewards();
 });
 overlay.addEventListener("click", () => {
-  if (rewarding || loadoutOpen) return;
+  if (rewarding || loadoutOpen || devOpen) return;
   if (playing && !pointerLocked && state.health > 0) {
     pausePanel.classList.add("hidden");
     controls.lock();

@@ -96,6 +96,7 @@
         <p class="tagline">Shoot poop. Destroy enemy poop. Survive.</p>
         <button id="start-btn">ENTER THE BROWN ZONE</button>
         <button id="loadout-btn" class="btn-secondary menu-secondary">LOADOUT</button>
+        <button id="dev-menu-btn" class="btn-secondary menu-secondary">DEV (`)</button>
         <p id="loadout-summary" class="loadout-summary">Start: Rifle · Extra: None</p>
       </div>
 
@@ -210,8 +211,22 @@
       </div>
       <div id="wave-toast" class="hidden" aria-live="polite">WAVE <span id="wave-toast-num">1</span></div>
       <div id="pickup-toast" class="hidden" aria-live="polite"></div>
+      <div id="god-badge" class="hidden" aria-live="polite">GOD</div>
       <div id="crosshair"><span></span><span></span></div>
       <div id="hit-marker" aria-hidden="true"></div>
+    </div>
+
+    <div id="dev-panel" class="hidden" role="dialog" aria-label="Developer cheats">
+      <div class="dev-head">
+        <strong>DEV</strong>
+        <span class="dev-keyhint">` toggle</span>
+      </div>
+      <button type="button" class="dev-btn" data-cheat="god"><span class="dev-num">1</span> God mode</button>
+      <button type="button" class="dev-btn" data-cheat="ammo"><span class="dev-num">2</span> Infinite ammo</button>
+      <button type="button" class="dev-btn" data-cheat="guns"><span class="dev-num">3</span> Unlock all guns</button>
+      <button type="button" class="dev-btn" data-cheat="wave"><span class="dev-num">4</span> Skip wave</button>
+      <button type="button" class="dev-btn" data-cheat="heal"><span class="dev-num">5</span> Heal + refill</button>
+      <p class="dev-foot">Click or 1–5 · Esc/` close</p>
     </div>
 
     <div id="reward-overlay" class="hidden" aria-modal="true" role="dialog" aria-labelledby="reward-title">
