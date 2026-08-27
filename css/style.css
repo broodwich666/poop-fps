@@ -43,7 +43,7 @@ body.is-playing {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(22, 12, 4, 0.28), rgba(6, 3, 1, 0.62));
+  background: radial-gradient(ellipse at center, rgba(18, 10, 4, 0.18), rgba(6, 3, 1, 0.52));
   pointer-events: auto;
 }
 
@@ -97,7 +97,7 @@ body.is-playing {
 
 .logo {
   position: relative;
-  padding-top: 0.55rem;
+  padding-top: 0.85rem;
 }
 
 .logo-poop-wrap {
@@ -105,15 +105,19 @@ body.is-playing {
   display: inline-block;
 }
 
+/* Swirl sits on the first O — mockup title treatment */
 .logo-coil {
   position: absolute;
-  left: 0.35em;
-  top: -0.42em;
-  width: 0.55em;
-  height: 0.55em;
-  filter: drop-shadow(0 4px 0 #2a1408);
+  left: 0.52em;
+  top: -0.48em;
+  width: 0.62em;
+  height: 0.62em;
+  filter:
+    drop-shadow(0 1px 0 #f0d2a8)
+    drop-shadow(0 5px 0 #2a1408);
   z-index: 3;
   pointer-events: none;
+  animation: coil-bob 2.4s ease-in-out infinite;
 }
 
 .logo-row {
@@ -124,14 +128,28 @@ body.is-playing {
 }
 
 .mascot {
-  width: 70px;
-  height: 70px;
+  width: 78px;
+  height: 78px;
   flex-shrink: 0;
   filter: drop-shadow(0 5px 0 #2a1408);
+  animation: mascot-bob 2.8s ease-in-out infinite;
 }
 
 .mascot-left { transform: rotate(-8deg); }
-.mascot-right { transform: rotate(8deg) scaleX(-1); }
+.mascot-right {
+  transform: rotate(8deg) scaleX(-1);
+  animation-delay: -1.4s;
+}
+
+@keyframes coil-bob {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-4px) rotate(4deg); }
+}
+
+@keyframes mascot-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -5px; }
+}
 
 .logo-poop,
 .logo-shooter,
@@ -227,20 +245,38 @@ body.is-playing {
   width: 100%;
   padding: 0.95rem 1.4rem;
   font-size: 1.05rem;
-  color: #1a0c04;
+  color: #f3d9a8;
+  text-shadow: 0 2px 0 rgba(90, 30, 0, 0.55);
   background:
-    radial-gradient(circle at 50% 32%, #ffd08a, #ff8a1a 42%, #d45500 78%);
-  border: 3px solid #5c2a08;
+    radial-gradient(circle at 50% 28%, #ffd898, #ff941f 40%, #d24a00 78%);
+  border: 3px solid #ff9a28;
   border-radius: 14px;
   box-shadow:
-    0 0 22px 4px rgba(255, 140, 0, 0.55),
+    0 0 0 2px #5c2a08,
+    0 0 28px 6px rgba(255, 140, 0, 0.62),
     0 6px 0 #7a3208,
     inset 0 2px 0 rgba(255, 255, 255, 0.38);
+  animation: cta-pulse 2.2s ease-in-out infinite;
 }
 
 #restart-btn {
   color: #fff;
-  text-shadow: 0 2px 0 rgba(90, 30, 0, 0.45);
+  animation: none;
+}
+
+@keyframes cta-pulse {
+  0%, 100% { box-shadow:
+    0 0 0 2px #5c2a08,
+    0 0 22px 4px rgba(255, 140, 0, 0.5),
+    0 6px 0 #7a3208,
+    inset 0 2px 0 rgba(255, 255, 255, 0.38);
+  }
+  50% { box-shadow:
+    0 0 0 2px #5c2a08,
+    0 0 34px 10px rgba(255, 150, 20, 0.75),
+    0 6px 0 #7a3208,
+    inset 0 2px 0 rgba(255, 255, 255, 0.38);
+  }
 }
 
 #start-btn:hover,
@@ -459,29 +495,32 @@ body.is-playing {
 
 .go-peek {
   position: absolute;
-  width: 120px;
-  height: 120px;
+  width: 148px;
+  height: 148px;
   z-index: 2;
-  filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.5));
   pointer-events: none;
 }
 
 .peek-left {
-  left: -1.55rem;
-  top: 30%;
+  left: -2.1rem;
+  top: 26%;
   transform: rotate(-18deg);
 }
 
 .peek-right-top {
-  right: -1.35rem;
-  top: 10%;
+  right: -1.9rem;
+  top: 4%;
   transform: rotate(16deg) scaleX(-1);
 }
 
-.peek-right-bot {
-  right: -0.85rem;
-  bottom: 8%;
-  transform: rotate(10deg);
+.peek-right-bot,
+.peek-bot-left {
+  left: -1.4rem;
+  bottom: -0.4rem;
+  width: 132px;
+  height: 132px;
+  transform: rotate(-8deg);
 }
 
 #paused {
@@ -510,31 +549,31 @@ body.is-playing {
 
 #health-panel {
   position: absolute;
-  top: 18px;
-  left: 18px;
+  top: 16px;
+  left: 16px;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.38rem 0.55rem 0.38rem 0.42rem;
+  gap: 0.45rem;
+  padding: 0.42rem 0.62rem 0.42rem 0.48rem;
   background: linear-gradient(180deg, #7a5228, #4a2c12);
   border: 3px solid #2a160a;
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 220, 170, 0.22);
 }
 
 #health-panel .heart {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
 }
 
 #health-bar {
   position: relative;
-  width: 168px;
-  height: 22px;
+  width: 176px;
+  height: 24px;
   background: rgba(0, 0, 0, 0.55);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
 }
@@ -542,10 +581,10 @@ body.is-playing {
 #health-fill {
   height: 100%;
   width: 100%;
-  background: linear-gradient(180deg, #d4f06a, #7ec62e 52%, #4fa018);
+  background: linear-gradient(180deg, #e2ff78, #8fd63a 48%, #5aa81a);
   transition: width 0.2s;
-  border-radius: 8px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 #health-text {
@@ -564,17 +603,17 @@ body.is-playing {
 
 #stats {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 16px;
+  right: 16px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.62rem;
-  min-width: 108px;
-  padding: 0.72rem 1rem 0.78rem;
+  gap: 0.55rem;
+  min-width: 118px;
+  padding: 0.78rem 1.1rem 0.85rem;
   background: linear-gradient(180deg, #6b4423, #3d2612);
-  border: 3px solid #d4b07a;
-  border-radius: 18px;
+  border: 3px solid #e0c08a;
+  border-radius: 16px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 220, 170, 0.18);
 }
 
@@ -644,5 +683,8 @@ body.is-playing {
     padding: 0.55rem 0.8rem;
     bottom: 14px;
   }
-  .go-peek { width: 64px; height: 64px; }
+  .go-peek { width: 72px; height: 72px; }
+  .peek-bot-left { width: 64px; height: 64px; }
+  #health-bar { width: 132px; }
+  #stats { min-width: 96px; padding: 0.55rem 0.75rem; }
 }

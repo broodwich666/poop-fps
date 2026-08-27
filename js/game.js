@@ -165,15 +165,16 @@ function clearScenery() {
 function addMenuScenery() {
   clearScenery();
   const spots = [
-    [-3.2, -8.2, 1.15],
-    [2.8, -11.2, 0.9],
-    [-0.6, -15.8, 1.35],
-    [5.2, -9.6, 0.75],
+    [-3.4, -7.4, 1.25],
+    [3.1, -10.2, 1.05],
+    [-0.4, -14.6, 1.45],
+    [5.6, -8.8, 0.85],
+    [-5.8, -12.4, 0.95],
   ];
   spots.forEach(([x, z, s], i) => {
     const poop = createEnemyPoop(s);
     poop.position.set(x, 0, z);
-    poop.lookAt(1.15, 0.5, 5.2);
+    poop.lookAt(0.4, 0.6, 6.4);
     poop.userData.wobble = i * 1.3;
     scene.add(poop);
     scenery.push(poop);
@@ -181,8 +182,9 @@ function addMenuScenery() {
 }
 
 function poseMenuCamera() {
-  camera.position.set(1.15, 1.9, 5.2);
-  camera.lookAt(0.15, 1.45, -16);
+  // Frame grass + POOP ARENA sign behind the title card
+  camera.position.set(0.35, 2.05, 6.4);
+  camera.lookAt(0.1, 1.55, -18);
 }
 
 function resetGame() {
@@ -217,7 +219,7 @@ function updateHud() {
   healthText.textContent = Math.max(0, Math.ceil(state.health));
   healthFill.style.background =
     state.health > 50
-      ? "linear-gradient(180deg, #c6ef63, #6bb32a 55%, #4e8f1c)"
+      ? "linear-gradient(180deg, #e2ff78, #8fd63a 48%, #5aa81a)"
       : state.health > 25
         ? "linear-gradient(180deg, #f0d060, #d4a017 55%, #b8860b)"
         : "linear-gradient(180deg, #ff6b6b, #c62828 55%, #8b0000)";

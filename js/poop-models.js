@@ -74,40 +74,41 @@ export function createAngryFace(scale = 1) {
   const black = new THREE.MeshStandardMaterial({ color: 0x0a0604, roughness: 0.4 });
   const browMat = new THREE.MeshStandardMaterial({ color: 0x0d0603, roughness: 0.7 });
 
-  const eyeRadius = 0.2 * scale;
-  const eyeY = 0.72 * scale;
-  const eyeZ = 0.55 * scale;
-  const eyeSpacing = 0.22 * scale;
+  // Larger eyes + thicker brows so anger reads at mid-range (mockup)
+  const eyeRadius = 0.24 * scale;
+  const eyeY = 0.7 * scale;
+  const eyeZ = 0.58 * scale;
+  const eyeSpacing = 0.24 * scale;
 
   [-1, 1].forEach((side) => {
     const x = side * eyeSpacing;
     const eye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 16, 16), white);
-    eye.scale.set(1.05, 1.12, 0.68);
+    eye.scale.set(1.08, 1.15, 0.7);
     eye.position.set(x, eyeY, eyeZ);
     face.add(eye);
 
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.42, 12, 12), black);
-    pupil.position.set(x + side * 0.01 * scale, eyeY - 0.015 * scale, eyeZ + eyeRadius * 0.42);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.4, 12, 12), black);
+    pupil.position.set(x + side * 0.012 * scale, eyeY - 0.02 * scale, eyeZ + eyeRadius * 0.42);
     face.add(pupil);
 
     const brow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4 * scale, 0.11 * scale, 0.1 * scale),
+      new THREE.BoxGeometry(0.46 * scale, 0.13 * scale, 0.11 * scale),
       browMat
     );
-    brow.position.set(x, eyeY + 0.175 * scale, eyeZ + 0.1 * scale);
-    brow.rotation.z = side > 0 ? -0.85 : 0.85;
+    brow.position.set(x, eyeY + 0.2 * scale, eyeZ + 0.12 * scale);
+    brow.rotation.z = side > 0 ? -0.95 : 0.95;
     face.add(brow);
   });
 
-  // Angry downturned mouth (mockup frown)
+  // Deep downturned frown
   const mouthGeo = new THREE.TubeGeometry(
     new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-0.13 * scale, 0.52 * scale, eyeZ + 0.02 * scale),
-      new THREE.Vector3(0, 0.44 * scale, eyeZ + 0.04 * scale),
-      new THREE.Vector3(0.13 * scale, 0.52 * scale, eyeZ + 0.02 * scale),
+      new THREE.Vector3(-0.16 * scale, 0.5 * scale, eyeZ + 0.02 * scale),
+      new THREE.Vector3(0, 0.4 * scale, eyeZ + 0.05 * scale),
+      new THREE.Vector3(0.16 * scale, 0.5 * scale, eyeZ + 0.02 * scale),
     ]),
-    10,
-    0.028 * scale,
+    12,
+    0.032 * scale,
     6,
     false
   );
@@ -136,12 +137,13 @@ export function createEnemyPoop(sizeScale = 1) {
 
 export function createViewmodelGun() {
   const vm = new THREE.Group();
-  const gun = createCoiledPoop(1.05, 0x5c3010);
-  gun.rotation.set(0.16, -0.55, 0.07);
+  // Slightly larger coil, tucked lower-right like gameplay mockup
+  const gun = createCoiledPoop(1.12, 0x5c3010);
+  gun.rotation.set(0.18, -0.58, 0.08);
   vm.add(gun);
 
-  vm.position.set(0.7, -0.58, -0.76);
-  vm.rotation.set(-0.09, 0.18, 0.05);
+  vm.position.set(0.78, -0.62, -0.72);
+  vm.rotation.set(-0.08, 0.2, 0.06);
   vm.userData.gun = gun;
   return vm;
 }
