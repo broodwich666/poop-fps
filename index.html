@@ -181,7 +181,11 @@
         <p class="loadout-sub">Pick your starter gun — keyboard, click, or gamepad</p>
 
         <h3 class="loadout-section-label">Starting Gun</h3>
-        <div id="loadout-guns" class="loadout-grid" role="listbox" aria-label="Starting gun"></div>
+        <div class="loadout-toolbar">
+          <div id="loadout-tabs" class="loadout-tabs" role="tablist" aria-label="Weapon archetype"></div>
+          <button type="button" id="loadout-random" class="btn-secondary loadout-random">RANDOM</button>
+        </div>
+        <div id="loadout-guns" class="loadout-gun-list" role="listbox" aria-label="Starting gun"></div>
 
         <h3 class="loadout-section-label">Starting Extra <span>(optional)</span></h3>
         <div id="loadout-extras" class="loadout-grid loadout-extras" role="listbox" aria-label="Starting extra"></div>
@@ -191,7 +195,7 @@
           <button type="button" id="loadout-confirm">CONFIRM</button>
           <button type="button" id="loadout-start">START MATCH</button>
         </div>
-        <p class="loadout-hint">← → switch · Enter confirm · A/X gamepad · Esc back</p>
+        <p class="loadout-hint">Tabs filter archetype · ↑↓ scroll list · ←→ extras · Enter confirm · A gamepad</p>
       </div>
     </div>
   </div>
