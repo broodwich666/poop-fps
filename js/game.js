@@ -71,6 +71,7 @@ let mods = createDefaultMods();
 let rewarding = false;
 let rewardOffer = [];
 let pendingWaveAdvance = null;
+let demoHold = false;
 
 const ARENA_SIZE = 40;
 const PLAYER_HEIGHT = 1.15;
@@ -563,6 +564,7 @@ function resetGame() {
   clearCombat();
   hideRewardUI(false);
   mods = createDefaultMods();
+  demoHold = false;
   state.health = 100;
   state.score = 0;
   state.kills = 0;
@@ -1295,7 +1297,7 @@ function updateEnemies(dt, now) {
 }
 
 function updateSpawns(dt) {
-  if (rewarding) return;
+  if (rewarding || demoHold) return;
   if (state.enemiesSpawned < state.enemiesToSpawn) {
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
@@ -1703,10 +1705,11 @@ window.__poopFpsSafeDemo = () => {
     ensureAudio();
     startGame();
   }
+  demoHold = true;
   enemies.forEach((e) => scene.remove(e));
   enemies = [];
-  state.enemiesToSpawn = 999;
-  state.enemiesSpawned = 999;
+  state.enemiesToSpawn = 1;
+  state.enemiesSpawned = 0;
   state.health = maxHealth();
   state.reserve = Math.max(state.reserve, 60);
   updateHud();
@@ -1716,4 +1719,17 @@ window.__poopFpsStartReload = () => {
   state.reserve = Math.max(state.reserve, 24);
   tryReload();
   updateHud();
+};
+window.__poopFpsPickupToast = () => {
+  const gained = Math.max(1, Math.round(AMMO_PICKUP_AMOUNT * mods.pickupMult));
+  const room = MAX_RESERVE - state.reserve;
+  const add = Math.min(room, gained);
+  if (add > 0) {
+    state.reserve += add;
+    sfxAmmoPickup();
+    showPickupToast(`+${add} AMMO`);
+    updateHud();
+  } else {
+    showPickupToast("RESERVE FULL");
+  }
 };
