@@ -2356,3 +2356,6 @@ window.__poopFpsSetLoadout = (gun, extra = "none") => {
   updateLoadoutSummary();
   renderLoadoutUI();
 };
+window.__poopFpsOpenDev = () => openDevPanel();
+window.__poopFpsToggleGod = () => cheatToggleGod();
+window.__poopFpsToggleInfiniteAmmo = () => cheatToggleInfiniteAmmo();
