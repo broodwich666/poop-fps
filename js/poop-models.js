@@ -135,15 +135,114 @@ export function createEnemyPoop(sizeScale = 1) {
   return group;
 }
 
+export function createHappyFace(scale = 1) {
+  const face = new THREE.Group();
+  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.28 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x0a0604, roughness: 0.4 });
+  const eyeRadius = 0.18 * scale;
+  const eyeY = 0.7 * scale;
+  const eyeZ = 0.55 * scale;
+  const eyeSpacing = 0.2 * scale;
+  [-1, 1].forEach((side) => {
+    const x = side * eyeSpacing;
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 14, 14), white);
+    eye.scale.set(1.05, 1.1, 0.65);
+    eye.position.set(x, eyeY, eyeZ);
+    face.add(eye);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.4, 10, 10), black);
+    pupil.position.set(x, eyeY - 0.01 * scale, eyeZ + eyeRadius * 0.4);
+    face.add(pupil);
+  });
+  const smile = new THREE.Mesh(
+    new THREE.TorusGeometry(0.12 * scale, 0.025 * scale, 8, 16, Math.PI),
+    black
+  );
+  smile.position.set(0, 0.48 * scale, eyeZ + 0.02 * scale);
+  smile.rotation.x = Math.PI;
+  face.add(smile);
+  return face;
+}
+
+/** Visible hero poop for third-person / OTS */
+export function createPlayerPoop(sizeScale = 1) {
+  const group = new THREE.Group();
+  const body = createCoiledPoop(sizeScale, 0xa05a28);
+  body.position.y = 0.02 * sizeScale;
+  group.add(body);
+  const face = createHappyFace(sizeScale);
+  face.position.z = 0.08 * sizeScale;
+  group.add(face);
+  group.userData.body = body;
+  group.userData.face = face;
+  group.userData.height = body.userData.height;
+  return group;
+}
+
+/** World-space gun the player holds (not a giant FPS viewmodel) */
+export function createHeldGun() {
+  const gun = new THREE.Group();
+  const black = new THREE.MeshStandardMaterial({ color: 0x1a1c1e, roughness: 0.42, metalness: 0.55 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x2e3236, roughness: 0.5, metalness: 0.4 });
+  const accent = new THREE.MeshStandardMaterial({ color: 0x6b3a14, roughness: 0.55, metalness: 0.15 });
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.48), black);
+  receiver.position.set(0, 0, 0);
+  receiver.castShadow = true;
+  gun.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.7, 10), dark);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.015, -0.55);
+  barrel.castShadow = true;
+  gun.add(barrel);
+
+  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.1, 0.32), dark);
+  handguard.position.set(0, -0.01, -0.28);
+  gun.add(handguard);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.28), black);
+  stock.position.set(0, -0.01, 0.32);
+  gun.add(stock);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.2, 0.12), black);
+  mag.position.set(0, -0.14, 0.02);
+  gun.add(mag);
+
+  // Tiny poop tip for theme
+  const tip = createCoiledPoop(0.18, 0x5c3010);
+  tip.position.set(0, 0.02, -0.88);
+  tip.rotation.x = 0.2;
+  tip.scale.setScalar(0.55);
+  tip.traverse((c) => {
+    if (c.isMesh) c.castShadow = true;
+  });
+  gun.add(tip);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.1), accent);
+  grip.position.set(0, -0.12, 0.14);
+  grip.rotation.x = 0.35;
+  gun.add(grip);
+
+  const muzzle = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0, depthWrite: false })
+  );
+  muzzle.position.set(0, 0.02, -0.95);
+  gun.add(muzzle);
+
+  gun.userData.muzzle = muzzle;
+  return gun;
+}
+
 export function createViewmodelGun() {
   const vm = new THREE.Group();
-  // Gameplay mockup: large glossy swirl in lower-right (dominant but not center)
-  const gun = createCoiledPoop(0.95, 0x5c3010);
-  gun.rotation.set(0.2, -0.55, 0.08);
+  // Compact FP swirl — only used in first-person camera mode
+  const gun = createCoiledPoop(0.45, 0x5c3010);
+  gun.rotation.set(0.22, -0.55, 0.1);
   vm.add(gun);
 
   const muzzle = new THREE.Mesh(
-    new THREE.SphereGeometry(0.06, 8, 8),
+    new THREE.SphereGeometry(0.045, 8, 8),
     new THREE.MeshBasicMaterial({
       color: 0xffcc66,
       transparent: true,
@@ -151,11 +250,11 @@ export function createViewmodelGun() {
       depthWrite: false,
     })
   );
-  muzzle.position.set(0.06, 0.72, 0.32);
+  muzzle.position.set(0.05, 0.4, 0.22);
   gun.add(muzzle);
 
-  vm.position.set(0.55, -0.48, -0.7);
-  vm.rotation.set(0.05, 0.28, 0.06);
+  vm.position.set(0.35, -0.38, -0.55);
+  vm.rotation.set(0.08, 0.25, 0.06);
   vm.userData.gun = gun;
   vm.userData.muzzle = muzzle;
   vm.userData.basePos = vm.position.clone();

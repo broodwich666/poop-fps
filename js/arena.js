@@ -70,10 +70,10 @@ function makeConcreteMaterial() {
   canvas.width = 128;
   canvas.height = 128;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#3a342c";
+  ctx.fillStyle = "#4a443c";
   ctx.fillRect(0, 0, 128, 128);
   for (let i = 0; i < 400; i++) {
-    ctx.fillStyle = i % 2 ? "#2e2820" : "#454038";
+    ctx.fillStyle = i % 2 ? "#3a342c" : "#5a544c";
     ctx.globalAlpha = 0.35;
     ctx.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 3, 1 + Math.random() * 3);
   }

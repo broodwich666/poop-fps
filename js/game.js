@@ -12,6 +12,8 @@ import {
 } from "./arena.js";
 import {
   createEnemyPoop,
+  createHeldGun,
+  createPlayerPoop,
   createProjectileMesh,
   createRifleViewmodel,
   createTrailParticle,
@@ -51,7 +53,8 @@ const goHealthText = document.getElementById("go-health-text");
 const goAmmoText = document.getElementById("go-ammo-text");
 
 const ARENA_SIZE = 40;
-const PLAYER_HEIGHT = 1.7;
+const PLAYER_HEIGHT = 1.15;
+const EYE_HEIGHT = 1.45;
 const GRAVITY = 25;
 const MOVE_SPEED = 8.5;
 const SPRINT_MULT = 1.65;
@@ -64,18 +67,58 @@ const MAX_TRAIL_PARTS = 10;
 const MAX_WAVES = 10;
 const MAG_SIZE = 12;
 const START_RESERVE = 96;
+const LOOK_SENS = 0.0022;
+const PAD_LOOK_SENS = 2.4;
+const DEADZONE = 0.18;
+
+const CAMERA_MODES = [
+  {
+    id: "ots",
+    // Close over-the-shoulder (default)
+    offset: new THREE.Vector3(0.7, 1.55, 2.35),
+    lookHeight: 1.2,
+    fov: 68,
+    showBody: true,
+    showHeld: true,
+    showVM: false,
+  },
+  {
+    id: "third",
+    offset: new THREE.Vector3(1.0, 2.25, 4.4),
+    lookHeight: 1.05,
+    fov: 62,
+    showBody: true,
+    showHeld: true,
+    showVM: false,
+  },
+  {
+    id: "fps",
+    offset: new THREE.Vector3(0, EYE_HEIGHT, 0.05),
+    lookHeight: EYE_HEIGHT,
+    fov: 75,
+    showBody: false,
+    showHeld: false,
+    showVM: true,
+  },
+];
 
 const keys = {};
 const velocity = new THREE.Vector3();
 const direction = new THREE.Vector3();
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _camOffset = new THREE.Vector3();
+const _lookTarget = new THREE.Vector3();
 
 let scene, camera, renderer, controls;
 let swirlGun, rifleGun, activeViewmodel;
+let playerRoot, playerBody, heldGun;
 let projectiles = [];
 let fxBits = [];
 let enemies = [];
 let splats = [];
 let playing = false;
+let pointerLocked = false;
 let lastShot = 0;
 let spawnTimer = 0;
 let enemyIdCounter = 0;
@@ -84,7 +127,14 @@ let muzzleFlash = 0;
 let shakeAmp = 0;
 let bobPhase = 0;
 let audioCtx = null;
+let musicMuted = false;
+let musicTimer = null;
+let musicStep = 0;
 let mode = "menu"; // menu | play | gameover
+let lookYaw = 0;
+let lookPitch = 0;
+let cameraModeIndex = 0;
+let padPrev = {};
 
 let menuWorld = null;
 let playWorld = null;
@@ -110,22 +160,66 @@ function ensureAudio() {
   return audioCtx;
 }
 
-function playTone({ freq = 220, dur = 0.08, type = "square", gain = 0.05, slide = 0 }) {
+function playTone({ freq = 220, dur = 0.08, type = "square", gain = 0.05, slide = 0, when = 0 }) {
   const ctx = ensureAudio();
   if (!ctx) return;
   if (ctx.state === "suspended") ctx.resume();
-  const t0 = ctx.currentTime;
+  const t0 = when || ctx.currentTime;
   const osc = ctx.createOscillator();
   const g = ctx.createGain();
   osc.type = type;
   osc.frequency.setValueAtTime(freq, t0);
   if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t0 + dur);
   g.gain.setValueAtTime(gain, t0);
-  g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + Math.max(0.02, dur));
   osc.connect(g);
   g.connect(ctx.destination);
   osc.start(t0);
   osc.stop(t0 + dur + 0.02);
+}
+
+// Original tropical chiptune loop (NOT Nintendo / SM64) — C major pentatonic
+const MUSIC_MELODY = [
+  523.25, 587.33, 659.25, 783.99, 659.25, 587.33, 523.25, 0,
+  392.0, 523.25, 587.33, 659.25, 587.33, 523.25, 392.0, 0,
+  659.25, 783.99, 880.0, 783.99, 659.25, 587.33, 523.25, 392.0,
+  523.25, 0, 587.33, 659.25, 783.99, 659.25, 523.25, 0,
+];
+const MUSIC_BASS = [
+  130.81, 0, 130.81, 0, 146.83, 0, 146.83, 0,
+  164.81, 0, 164.81, 0, 196.0, 0, 174.61, 0,
+  130.81, 0, 130.81, 0, 146.83, 0, 146.83, 0,
+  196.0, 0, 174.61, 0, 164.81, 0, 130.81, 0,
+];
+
+function musicTick() {
+  if (musicMuted || !audioCtx) return;
+  const step = musicStep % 32;
+  const mel = MUSIC_MELODY[step];
+  const bass = MUSIC_BASS[step];
+  if (mel) playTone({ freq: mel, dur: 0.14, type: "triangle", gain: 0.028 });
+  if (bass) playTone({ freq: bass, dur: 0.18, type: "square", gain: 0.018 });
+  // Percussion: kick on 0/8/16/24, hat on odds
+  if (step % 8 === 0) playTone({ freq: 90, dur: 0.06, type: "sine", gain: 0.04, slide: -50 });
+  if (step % 2 === 1) playTone({ freq: 1200, dur: 0.025, type: "square", gain: 0.008 });
+  musicStep++;
+}
+
+function startMusic() {
+  ensureAudio();
+  if (musicTimer) return;
+  musicStep = 0;
+  musicTimer = setInterval(musicTick, 160);
+}
+
+function stopMusic() {
+  if (musicTimer) clearInterval(musicTimer);
+  musicTimer = null;
+}
+
+function toggleMusic() {
+  musicMuted = !musicMuted;
+  if (!musicMuted) startMusic();
 }
 
 const sfxShoot = () => {
@@ -154,10 +248,49 @@ function enemyCenter(enemy) {
   return enemy.position.clone().add(new THREE.Vector3(0, h * 0.5, 0));
 }
 
+function currentCamMode() {
+  return CAMERA_MODES[cameraModeIndex];
+}
+
+function applyCameraModeVisuals() {
+  const m = currentCamMode();
+  if (playerBody) playerBody.visible = mode === "play" && m.showBody;
+  if (heldGun) heldGun.visible = mode === "play" && m.showHeld;
+  if (swirlGun) swirlGun.visible = mode === "play" && m.showVM;
+  if (rifleGun) rifleGun.visible = mode === "gameover";
+  if (mode === "play" && m.showVM) activeViewmodel = swirlGun;
+  if (mode === "gameover") activeViewmodel = rifleGun;
+  camera.fov = m.fov;
+  camera.updateProjectionMatrix();
+}
+
+function cycleCameraMode() {
+  if (mode !== "play" || !playing) return;
+  cameraModeIndex = (cameraModeIndex + 1) % CAMERA_MODES.length;
+  applyCameraModeVisuals();
+  playTone({ freq: 320 + cameraModeIndex * 40, dur: 0.06, type: "triangle", gain: 0.035 });
+}
+
 function setViewmodel(kind) {
-  swirlGun.visible = kind === "swirl";
-  rifleGun.visible = kind === "rifle";
-  activeViewmodel = kind === "rifle" ? rifleGun : swirlGun;
+  if (kind === "rifle") {
+    swirlGun.visible = false;
+    rifleGun.visible = true;
+    activeViewmodel = rifleGun;
+    if (playerRoot) playerRoot.visible = false;
+  } else if (kind === "swirl") {
+    // Play mode uses applyCameraModeVisuals for body/held/vm
+    rifleGun.visible = false;
+    if (playerRoot) playerRoot.visible = true;
+    applyCameraModeVisuals();
+  } else {
+    swirlGun.visible = false;
+    rifleGun.visible = false;
+    if (playerRoot) playerRoot.visible = false;
+  }
+}
+
+function getPlayerPos() {
+  return playerRoot ? playerRoot.position : camera.position;
 }
 
 function hideWorlds() {
@@ -172,6 +305,7 @@ function showMenuWorld() {
   if (!menuWorld) menuWorld = buildMenuCompound(scene);
   menuWorld.root.visible = true;
   applyMenuLighting(scene);
+  if (playerRoot) playerRoot.visible = false;
   setViewmodel("none");
   swirlGun.visible = false;
   rifleGun.visible = false;
@@ -188,6 +322,7 @@ function showPlayWorld() {
   if (!playWorld) playWorld = buildGameplayArena(scene, ARENA_SIZE);
   playWorld.root.visible = true;
   applyGameplayLighting(scene);
+  if (playerRoot) playerRoot.visible = true;
   setViewmodel("swirl");
   document.body.classList.remove("is-gameover-screen");
   playHud.classList.remove("hidden");
@@ -200,6 +335,7 @@ function showBathroomWorld() {
   if (!bathWorld) bathWorld = buildBathroomArena(scene);
   bathWorld.root.visible = true;
   applyBathroomLighting(scene);
+  if (playerRoot) playerRoot.visible = false;
   setViewmodel("rifle");
   poseGameOverCamera();
   document.body.classList.add("is-gameover-screen");
@@ -252,8 +388,8 @@ function createSplat(position) {
 
 function initScene() {
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
-  camera.position.set(0, PLAYER_HEIGHT, 0);
+  camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.position.set(0, 2, 4);
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -262,17 +398,31 @@ function initScene() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   configureMockupRenderer(renderer);
 
-  scene.add(camera);
+  // Player avatar + held gun in world space
+  playerRoot = new THREE.Group();
+  playerRoot.visible = false;
+  playerBody = createPlayerPoop(1.05);
+  playerRoot.add(playerBody);
+  heldGun = createHeldGun();
+  heldGun.position.set(0.42, 0.85, -0.35);
+  heldGun.rotation.set(0.05, 0.08, 0.12);
+  playerRoot.add(heldGun);
+  scene.add(playerRoot);
+
+  // FP viewmodel + game-over rifle stay parented to camera
   swirlGun = createViewmodelGun();
   rifleGun = createRifleViewmodel();
   swirlGun.visible = false;
   rifleGun.visible = false;
   camera.add(swirlGun);
   camera.add(rifleGun);
+  scene.add(camera);
   activeViewmodel = swirlGun;
 
+  // Pointer lock only for look/capture — movement is custom
   controls = new PointerLockControls(camera, document.body);
   controls.addEventListener("lock", () => {
+    pointerLocked = true;
     if (playing) {
       overlay.classList.add("playing");
       overlay.classList.remove("is-gameover");
@@ -284,6 +434,7 @@ function initScene() {
     }
   });
   controls.addEventListener("unlock", () => {
+    pointerLocked = false;
     document.body.classList.remove("is-playing");
     if (playing && state.health > 0) {
       overlay.classList.remove("playing");
@@ -291,7 +442,16 @@ function initScene() {
     }
   });
 
+  document.addEventListener("mousemove", onMouseLook);
+
   showMenuWorld();
+}
+
+function onMouseLook(e) {
+  if (!playing || !pointerLocked || mode !== "play") return;
+  lookYaw -= e.movementX * LOOK_SENS;
+  lookPitch -= e.movementY * LOOK_SENS;
+  lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
 }
 
 function clearCombat() {
@@ -325,7 +485,13 @@ function resetGame() {
   state.reserve = START_RESERVE;
   spawnTimer = 0;
   velocity.set(0, 0, 0);
-  camera.position.set(0, PLAYER_HEIGHT, 0);
+  lookYaw = 0;
+  lookPitch = 0;
+  cameraModeIndex = 0;
+  if (playerRoot) {
+    playerRoot.position.set(0, 0, 0);
+    playerRoot.rotation.set(0, 0, 0);
+  }
   updateHud();
 }
 
@@ -371,8 +537,9 @@ function drawMinimap(c, frozen) {
     ctx.stroke();
   }
   const scale = (w * 0.42) / ARENA_SIZE;
-  const px = frozen ? 0 : camera.position.x;
-  const pz = frozen ? 2 : camera.position.z;
+  const pos = getPlayerPos();
+  const px = frozen ? 0 : pos.x;
+  const pz = frozen ? 2 : pos.z;
 
   enemies.forEach((e) => {
     const x = w / 2 + (e.position.x - px) * scale;
@@ -386,10 +553,7 @@ function drawMinimap(c, frozen) {
   // player triangle
   ctx.save();
   ctx.translate(w / 2, h / 2);
-  if (!frozen) {
-    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, "YXZ");
-    ctx.rotate(-euler.y);
-  }
+  if (!frozen) ctx.rotate(-lookYaw);
   ctx.fillStyle = "#7CFF6B";
   ctx.beginPath();
   ctx.moveTo(0, -7);
@@ -469,14 +633,19 @@ function shoot() {
   updateHud();
 
   const mesh = createProjectileMesh();
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
+  const forward = new THREE.Vector3(-Math.sin(lookYaw), Math.sin(lookPitch), -Math.cos(lookYaw));
+  forward.normalize();
+
   const spawnPos = new THREE.Vector3();
-  if (activeViewmodel?.userData?.muzzle) {
-    activeViewmodel.userData.muzzle.getWorldPosition(spawnPos);
+  const cam = currentCamMode();
+  if (cam.showVM && swirlGun?.userData?.muzzle) {
+    swirlGun.userData.muzzle.getWorldPosition(spawnPos);
+  } else if (heldGun?.userData?.muzzle) {
+    heldGun.userData.muzzle.getWorldPosition(spawnPos);
   } else {
-    activeViewmodel.getWorldPosition(spawnPos);
-    spawnPos.add(forward.clone().multiplyScalar(0.45));
+    spawnPos.copy(getPlayerPos());
+    spawnPos.y += EYE_HEIGHT;
+    spawnPos.add(forward.clone().multiplyScalar(0.8));
   }
   mesh.position.copy(spawnPos);
   scene.add(mesh);
@@ -578,11 +747,16 @@ function endGame() {
 
 function startGame() {
   ensureAudio();
+  startMusic();
   resetGame();
   showPlayWorld();
-  camera.position.set(0, PLAYER_HEIGHT, 0);
-  camera.rotation.set(0, 0, 0);
-  camera.quaternion.identity();
+  lookYaw = 0;
+  lookPitch = 0;
+  cameraModeIndex = 0;
+  if (playerRoot) {
+    playerRoot.position.set(0, 0, 0);
+    playerRoot.visible = true;
+  }
   playing = true;
   shakeAmp = 0;
   bobPhase = 0;
@@ -592,9 +766,10 @@ function startGame() {
   gameOverPanel.classList.add("hidden");
   pausePanel.classList.add("hidden");
   hud.classList.remove("hidden");
+  applyCameraModeVisuals();
+  updateFollowCamera(0);
   showWaveToast(1);
   spawnTimer = 0.05;
-  // Seed a few enemies in view so the first second matches the mockup beat
   createEnemy(-3, -10);
   createEnemy(2.5, -12);
   createEnemy(0.5, -8);
@@ -615,14 +790,25 @@ function returnToMenu() {
 }
 
 function updateViewmodel(dt) {
-  if (!activeViewmodel?.visible) return;
   weaponRecoil = THREE.MathUtils.lerp(weaponRecoil, 0, dt * 12);
   muzzleFlash = Math.max(0, muzzleFlash - dt * 8);
+
+  // Recoil kick on held world gun
+  if (heldGun && heldGun.visible) {
+    heldGun.rotation.x = 0.05 - weaponRecoil * 0.35;
+    heldGun.position.z = -0.35 + weaponRecoil * 0.08;
+    if (heldGun.userData.muzzle?.material) {
+      heldGun.userData.muzzle.material.opacity = muzzleFlash * 0.95;
+      heldGun.userData.muzzle.scale.setScalar(0.7 + muzzleFlash * 1.8);
+    }
+  }
+
+  if (!activeViewmodel?.visible) return;
   const base = activeViewmodel.userData.basePos || activeViewmodel.position;
   const baseRot = activeViewmodel.userData.baseRot || { x: 0, y: 0, z: 0 };
-  const moving = keys["KeyW"] || keys["KeyA"] || keys["KeyS"] || keys["KeyD"];
-  if (playing && controls.isLocked && moving) {
-    const sprint = keys["ShiftLeft"] || keys["ShiftRight"];
+  const moving = keys["KeyW"] || keys["KeyA"] || keys["KeyS"] || keys["KeyD"] || padMoveActive();
+  if (playing && pointerLocked && moving) {
+    const sprint = keys["ShiftLeft"] || keys["ShiftRight"] || padSprint();
     bobPhase += dt * (sprint ? 14 : 10);
   }
   const bobY = Math.sin(bobPhase) * 0.018;
@@ -633,36 +819,74 @@ function updateViewmodel(dt) {
   activeViewmodel.rotation.x = baseRot.x - weaponRecoil * 0.4;
   activeViewmodel.rotation.y = baseRot.y;
   activeViewmodel.rotation.z = baseRot.z + weaponRecoil * 0.08;
-  if (activeViewmodel.userData.gun) {
-    activeViewmodel.userData.gun.rotation.y = -0.55 - weaponRecoil * 0.2;
-  }
   if (activeViewmodel.userData.muzzle?.material) {
     activeViewmodel.userData.muzzle.material.opacity = muzzleFlash * 0.95;
     activeViewmodel.userData.muzzle.scale.setScalar(0.7 + muzzleFlash * 1.6);
   }
 }
 
-function updatePlayer(dt) {
-  const onGround = camera.position.y <= PLAYER_HEIGHT;
-  if (!onGround) velocity.y -= GRAVITY * dt;
-  else {
-    velocity.y = 0;
-    camera.position.y = PLAYER_HEIGHT;
+function updateFollowCamera(dt) {
+  if (!playerRoot || mode !== "play") return;
+  const m = currentCamMode();
+  // Rotate offset by yaw
+  _camOffset.copy(m.offset);
+  _camOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), lookYaw);
+  const targetPos = playerRoot.position.clone().add(_camOffset);
+  if (dt > 0) {
+    camera.position.lerp(targetPos, 1 - Math.exp(-12 * dt));
+  } else {
+    camera.position.copy(targetPos);
   }
+  _lookTarget.set(
+    playerRoot.position.x - Math.sin(lookYaw) * 6,
+    playerRoot.position.y + m.lookHeight + Math.sin(lookPitch) * 4,
+    playerRoot.position.z - Math.cos(lookYaw) * 6
+  );
+  camera.lookAt(_lookTarget);
+}
+
+function readMoveInput() {
   direction.set(0, 0, 0);
   if (keys["KeyW"]) direction.z -= 1;
   if (keys["KeyS"]) direction.z += 1;
   if (keys["KeyA"]) direction.x -= 1;
   if (keys["KeyD"]) direction.x += 1;
-  if (direction.lengthSq() > 0) {
-    direction.normalize();
-    const speed = keys["ShiftLeft"] || keys["ShiftRight"] ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED;
-    controls.moveRight(direction.x * speed * dt);
-    controls.moveForward(-direction.z * speed * dt);
+
+  const pad = getPad();
+  if (pad) {
+    const lx = axisDZ(pad.axes[0]);
+    const ly = axisDZ(pad.axes[1]);
+    direction.x += lx;
+    direction.z += ly;
   }
-  camera.position.x = THREE.MathUtils.clamp(camera.position.x, -ARENA_SIZE + 1.5, ARENA_SIZE - 1.5);
-  camera.position.z = THREE.MathUtils.clamp(camera.position.z, -ARENA_SIZE + 1.5, ARENA_SIZE - 1.5);
-  camera.position.y += velocity.y * dt;
+  if (direction.lengthSq() > 1) direction.normalize();
+  return direction;
+}
+
+function updatePlayer(dt) {
+  if (!playerRoot) return;
+  const move = readMoveInput();
+  const sprint = keys["ShiftLeft"] || keys["ShiftRight"] || padSprint();
+  const speed = sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED;
+
+  if (move.lengthSq() > 0) {
+    _forward.set(-Math.sin(lookYaw), 0, -Math.cos(lookYaw));
+    _right.set(Math.cos(lookYaw), 0, -Math.sin(lookYaw));
+    playerRoot.position.addScaledVector(_right, move.x * speed * dt);
+    playerRoot.position.addScaledVector(_forward, -move.z * speed * dt);
+    bobPhase += dt * (sprint ? 14 : 10);
+    if (playerBody?.userData?.body) {
+      playerBody.userData.body.rotation.y = Math.sin(bobPhase) * 0.12;
+    }
+  }
+
+  playerRoot.position.x = THREE.MathUtils.clamp(playerRoot.position.x, -ARENA_SIZE + 1.5, ARENA_SIZE - 1.5);
+  playerRoot.position.z = THREE.MathUtils.clamp(playerRoot.position.z, -ARENA_SIZE + 1.5, ARENA_SIZE - 1.5);
+  playerRoot.position.y = 0;
+  // Face look direction
+  playerRoot.rotation.y = lookYaw;
+
+  updateFollowCamera(dt);
 }
 
 function addTrailParticle(proj) {
@@ -728,7 +952,7 @@ function updateFxBits(dt) {
 }
 
 function updateEnemies(dt, now) {
-  const playerPos = camera.position;
+  const playerPos = getPlayerPos();
   enemies.forEach((enemy) => {
     enemy.userData.wobble += dt * 4;
     enemy.userData.hopPhase += dt * (enemy.userData.hopSpeed || 8);
@@ -837,6 +1061,71 @@ function updateMenuProps(dt) {
   });
 }
 
+function axisDZ(v) {
+  return Math.abs(v) < DEADZONE ? 0 : v;
+}
+
+function getPad() {
+  const pads = navigator.getGamepads?.() || [];
+  for (const p of pads) {
+    if (p && p.connected) return p;
+  }
+  return null;
+}
+
+function padBtn(pad, i) {
+  return Boolean(pad?.buttons?.[i]?.pressed);
+}
+
+function padBtnEdge(name, pressed) {
+  const was = padPrev[name];
+  padPrev[name] = pressed;
+  return pressed && !was;
+}
+
+function padSprint() {
+  const pad = getPad();
+  if (!pad) return false;
+  // L3 (10) or LB (4)
+  return padBtn(pad, 10) || padBtn(pad, 4);
+}
+
+function padMoveActive() {
+  const pad = getPad();
+  if (!pad) return false;
+  return Math.abs(axisDZ(pad.axes[0])) > 0 || Math.abs(axisDZ(pad.axes[1])) > 0;
+}
+
+function pollGamepad(dt) {
+  const pad = getPad();
+  if (!pad) return;
+
+  // Right stick look — axes 2/3 standard; some browsers use 3/4
+  const rx = axisDZ(pad.axes[2] ?? 0);
+  const ry = axisDZ(pad.axes[3] ?? pad.axes[4] ?? 0);
+  if (playing && pointerLocked && mode === "play") {
+    lookYaw -= rx * PAD_LOOK_SENS * dt;
+    lookPitch -= ry * PAD_LOOK_SENS * dt;
+    lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
+  }
+
+  // RT (7) or A/X (0) shoot
+  const shootHeld = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4 || padBtn(pad, 0);
+  if (playing && pointerLocked && shootHeld) shoot();
+
+  // X / Square (2) reload
+  if (padBtnEdge("reload", padBtn(pad, 2)) && playing && pointerLocked) tryReload();
+
+  // Y / Triangle (3) camera cycle
+  if (padBtnEdge("cam", padBtn(pad, 3))) cycleCameraMode();
+
+  // Start (9) pause / unlock
+  if (padBtnEdge("start", padBtn(pad, 9))) {
+    if (playing && pointerLocked) controls.unlock();
+    else if (playing && !pointerLocked && state.health > 0) controls.lock();
+  }
+}
+
 let lastTime = performance.now();
 function animate() {
   requestAnimationFrame(animate);
@@ -844,7 +1133,9 @@ function animate() {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
-  if (playing && controls.isLocked) {
+  pollGamepad(dt);
+
+  if (playing && pointerLocked && mode === "play") {
     updatePlayer(dt);
     updateViewmodel(dt);
     updateProjectiles(dt);
@@ -856,9 +1147,10 @@ function animate() {
   } else {
     updateViewmodel(dt);
     updateMenuProps(dt);
+    if (playing && mode === "play") updateFollowCamera(dt);
   }
 
-  if (shakeAmp > 0.0005 && playing) {
+  if (shakeAmp > 0.0005 && playing && mode === "play") {
     const sx = (Math.random() - 0.5) * shakeAmp;
     const sy = (Math.random() - 0.5) * shakeAmp;
     camera.position.x += sx;
@@ -875,18 +1167,30 @@ function animate() {
 
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
-  if (e.code === "KeyR" && playing && controls.isLocked) tryReload();
+  if (e.code === "KeyR" && playing && pointerLocked) tryReload();
+  if (e.code === "KeyC" && playing) {
+    e.preventDefault();
+    cycleCameraMode();
+  }
+  if (e.code === "KeyM") {
+    e.preventDefault();
+    toggleMusic();
+  }
 });
 window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
 });
 window.addEventListener("mousedown", (e) => {
-  if (playing && controls.isLocked && e.button === 0) shoot();
+  if (playing && pointerLocked && e.button === 0) shoot();
 });
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+window.addEventListener("gamepadconnected", () => {
+  // no-op — pollGamepad picks it up
 });
 
 startBtn.addEventListener("click", (e) => {
@@ -904,7 +1208,7 @@ menuBtn.addEventListener("click", (e) => {
   returnToMenu();
 });
 overlay.addEventListener("click", () => {
-  if (playing && !controls.isLocked && state.health > 0) {
+  if (playing && !pointerLocked && state.health > 0) {
     pausePanel.classList.add("hidden");
     controls.lock();
   }
@@ -929,3 +1233,5 @@ window.__poopFpsForceGameOver = () => {
   state.health = 0;
   endGame();
 };
+
+window.__poopFpsCycleCamera = cycleCameraMode;
