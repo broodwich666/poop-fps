@@ -156,6 +156,7 @@
   </div>
 
   <div id="hud" class="hidden">
+    <div id="damage-vignette" aria-hidden="true"></div>
     <div id="health-panel">
       <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart" /></svg>
       <div id="health-bar">
@@ -168,7 +169,9 @@
       <div class="stat"><span class="label">Wave</span><strong id="wave" class="stat-wave">1</strong></div>
       <div class="stat"><span class="label">Kills</span><strong id="kills" class="stat-kills">0</strong></div>
     </div>
+    <div id="wave-toast" class="hidden" aria-live="polite">WAVE <span id="wave-toast-num">1</span></div>
     <div id="crosshair"><span></span><span></span></div>
+    <div id="hit-marker" aria-hidden="true"></div>
   </div>
 
   <canvas id="game-canvas"></canvas>
