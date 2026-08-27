@@ -137,12 +137,12 @@ export function createEnemyPoop(sizeScale = 1) {
 
 export function createViewmodelGun() {
   const vm = new THREE.Group();
-  // Slightly larger coil, tucked lower-right like gameplay mockup
-  const gun = createCoiledPoop(1.12, 0x5c3010);
+  // Lower-right coil like gameplay mockup — big enough to read, not full screen
+  const gun = createCoiledPoop(1.08, 0x5c3010);
   gun.rotation.set(0.18, -0.58, 0.08);
   vm.add(gun);
 
-  vm.position.set(0.78, -0.62, -0.72);
+  vm.position.set(0.74, -0.6, -0.74);
   vm.rotation.set(-0.08, 0.2, 0.06);
   vm.userData.gun = gun;
   return vm;
