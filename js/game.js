@@ -75,9 +75,9 @@ const CAMERA_MODES = [
   {
     id: "ots",
     // Close over-the-shoulder (default)
-    offset: new THREE.Vector3(0.7, 1.55, 2.35),
-    lookHeight: 1.2,
-    fov: 68,
+    offset: new THREE.Vector3(0.85, 1.7, 3.0),
+    lookHeight: 1.15,
+    fov: 66,
     showBody: true,
     showHeld: true,
     showVM: false,
