@@ -116,11 +116,26 @@
         </div>
         <div class="ctrl">
           <svg class="ctrl-icon" viewBox="0 0 32 40" aria-hidden="true"><use href="#icon-mouse-click" /></svg>
+          <span class="pad-chip">RT</span>
           <span class="ctrl-label">SHOOT</span>
         </div>
         <div class="ctrl">
           <span class="key key-shift">SHIFT</span>
+          <span class="ctrl-or">/</span>
+          <span class="pad-chip">B</span>
           <span class="ctrl-label">SPRINT</span>
+        </div>
+        <div class="ctrl">
+          <span class="key">SPACE</span>
+          <span class="ctrl-or">/</span>
+          <span class="pad-chip">A</span>
+          <span class="ctrl-label">JUMP</span>
+        </div>
+        <div class="ctrl">
+          <span class="key">RMB</span>
+          <span class="ctrl-or">/</span>
+          <span class="pad-chip">L2</span>
+          <span class="ctrl-label">ZOOM</span>
         </div>
       </div>
     </div>
@@ -151,9 +166,12 @@
       </div>
     </div>
 
-    <div id="paused" class="hidden">
+    <div id="paused" class="hidden" role="dialog" aria-label="Paused">
       <div class="pause-card">
-        <p>Click to continue</p>
+        <h2 class="pause-title">PAUSED</h2>
+        <button type="button" id="pause-resume-btn">RESUME</button>
+        <button type="button" id="pause-menu-btn" class="btn-secondary">MAIN MENU</button>
+        <p class="pause-hint">Esc / Start · Resume relocks aim</p>
       </div>
     </div>
 

@@ -42,6 +42,8 @@ const overlay = document.getElementById("overlay");
 const menu = document.getElementById("menu");
 const gameOverPanel = document.getElementById("game-over");
 const pausePanel = document.getElementById("paused");
+const pauseResumeBtn = document.getElementById("pause-resume-btn");
+const pauseMenuBtn = document.getElementById("pause-menu-btn");
 const hud = document.getElementById("hud");
 const playHud = document.getElementById("play-hud");
 const goHud = document.getElementById("go-hud");
@@ -126,6 +128,12 @@ const EYE_HEIGHT = 1.45;
 const GRAVITY = 25;
 const MOVE_SPEED = 8.5;
 const SPRINT_MULT = 1.65;
+const JUMP_VELOCITY = 7.4;
+const JUMP_CUT_MULT = 0.42;
+const COYOTE_TIME = 0.11;
+const ADS_FOV_MULT = 0.72;
+const ADS_LOOK_MULT = 0.78;
+const GROUND_Y = 0;
 const FIRE_RATE = 0.14;
 const PROJECTILE_SPEED = 34;
 const ENEMY_SPEED = 3.6;
@@ -213,6 +221,11 @@ let lookYaw = 0;
 let lookPitch = 0;
 let cameraModeIndex = 0;
 let padPrev = {};
+let gamePaused = false;
+let adsHeld = false;
+let verticalVelocity = 0;
+let coyoteTimer = 0;
+let jumpHeld = false;
 
 let menuWorld = null;
 let playWorld = null;
@@ -415,6 +428,82 @@ function currentCamMode() {
   return CAMERA_MODES[cameraModeIndex];
 }
 
+function adsActive() {
+  return adsHeld && playing && mode === "play" && pointerLocked && !gamePaused && !rewarding && !devOpen;
+}
+
+function lookSensMult() {
+  return adsActive() ? ADS_LOOK_MULT : 1;
+}
+
+function effectiveFov() {
+  const base = currentCamMode().fov;
+  return adsActive() ? base * ADS_FOV_MULT : base;
+}
+
+function updateAdsZoom() {
+  if (!camera) return;
+  const target = effectiveFov();
+  if (Math.abs(camera.fov - target) > 0.05) {
+    camera.fov = THREE.MathUtils.lerp(camera.fov, target, 0.22);
+    camera.updateProjectionMatrix();
+  } else if (camera.fov !== target) {
+    camera.fov = target;
+    camera.updateProjectionMatrix();
+  }
+}
+
+function isGrounded() {
+  return playerRoot && playerRoot.position.y <= GROUND_Y + 0.001 && verticalVelocity <= 0;
+}
+
+function tryJump() {
+  if (!playing || !pointerLocked || gamePaused || rewarding || devOpen || loadoutOpen) return;
+  if (coyoteTimer > 0 || isGrounded()) {
+    verticalVelocity = JUMP_VELOCITY;
+    coyoteTimer = 0;
+    jumpHeld = true;
+  }
+}
+
+function releaseJump() {
+  if (jumpHeld && verticalVelocity > 0) verticalVelocity *= JUMP_CUT_MULT;
+  jumpHeld = false;
+}
+
+function setPaused(paused) {
+  if (!playing || mode !== "play" || rewarding || devOpen || loadoutOpen) return;
+  if (paused === gamePaused) return;
+  gamePaused = paused;
+  shootHeld = false;
+  keys._mouseDown = false;
+  adsHeld = false;
+  if (paused) {
+    pausePanel?.classList.remove("hidden");
+    overlay?.classList.remove("playing");
+    overlay?.classList.add("is-paused");
+    if (pointerLocked) {
+      try { controls.unlock(); } catch (_) { /* ignore */ }
+    }
+    playTone({ freq: 300, dur: 0.05, type: "triangle", gain: 0.03 });
+  } else {
+    pausePanel?.classList.add("hidden");
+    overlay?.classList.remove("is-paused");
+    if (state.health > 0) controls.lock();
+    playTone({ freq: 420, dur: 0.05, type: "triangle", gain: 0.03 });
+  }
+}
+
+function togglePause() {
+  if (!playing || mode !== "play" || rewarding || devOpen || loadoutOpen) return;
+  setPaused(!gamePaused);
+}
+
+function resumeFromPause() {
+  if (!gamePaused) return;
+  setPaused(false);
+}
+
 function applyCameraModeVisuals() {
   const m = currentCamMode();
   if (playerBody) playerBody.visible = mode === "play" && m.showBody;
@@ -436,7 +525,7 @@ function applyCameraModeVisuals() {
   }
   if (swirlGun && swirlGun !== activeViewmodel) swirlGun.visible = false;
   if (rifleGun && mode !== "gameover") rifleGun.visible = false;
-  camera.fov = m.fov;
+  camera.fov = effectiveFov();
   camera.updateProjectionMatrix();
 }
 
@@ -655,6 +744,9 @@ function initScene() {
   controls.addEventListener("lock", () => {
     pointerLocked = true;
     if (playing) {
+      gamePaused = false;
+      pausePanel?.classList.add("hidden");
+      overlay?.classList.remove("is-paused");
       overlay.classList.add("playing");
       overlay.classList.remove("is-gameover");
       menu.classList.add("hidden");
@@ -668,8 +760,15 @@ function initScene() {
     pointerLocked = false;
     document.body.classList.remove("is-playing");
     if (playing && state.health > 0 && !rewarding && !devOpen) {
-      overlay.classList.remove("playing");
-      pausePanel.classList.remove("hidden");
+      if (!gamePaused) {
+        gamePaused = true;
+        pausePanel?.classList.remove("hidden");
+        overlay?.classList.remove("playing");
+        overlay?.classList.add("is-paused");
+        shootHeld = false;
+        keys._mouseDown = false;
+        adsHeld = false;
+      }
     }
   });
 
@@ -679,9 +778,10 @@ function initScene() {
 }
 
 function onMouseLook(e) {
-  if (!playing || !pointerLocked || mode !== "play" || rewarding || devOpen) return;
-  lookYaw -= e.movementX * LOOK_SENS;
-  lookPitch -= e.movementY * LOOK_SENS;
+  if (!playing || !pointerLocked || mode !== "play" || rewarding || devOpen || gamePaused) return;
+  const sens = LOOK_SENS * lookSensMult();
+  lookYaw -= e.movementX * sens;
+  lookPitch -= e.movementY * sens;
   lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
 }
 
@@ -724,6 +824,11 @@ function resetGame() {
   demoHold = false;
   gatlingSpin = 0;
   shootHeld = false;
+  gamePaused = false;
+  adsHeld = false;
+  verticalVelocity = 0;
+  coyoteTimer = 0;
+  jumpHeld = false;
 
   // Apply loadout
   ownedWeapons = new Set([loadout.startWeapon || "rifle"]);
@@ -887,7 +992,7 @@ function spawnEnemyAtEdge() {
 }
 
 function tryReload() {
-  if (rewarding || reloading || devOpen) return;
+  if (rewarding || reloading || devOpen || gamePaused) return;
   if (cheatInfiniteAmmo) {
     state.mag = magCapacity();
     state.reserve = Math.max(state.reserve, MAX_RESERVE);
@@ -1045,7 +1150,7 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
 }
 
 function shoot() {
-  if (rewarding || loadoutOpen || devOpen) return;
+  if (rewarding || loadoutOpen || devOpen || gamePaused) return;
   const now = performance.now() / 1000;
   if (reloading && !cheatInfiniteAmmo) return;
   if (cheatInfiniteAmmo && reloading) cancelReload(false);
@@ -1222,10 +1327,13 @@ function hurtPlayer(amount) {
 
 function endGame() {
   playing = false;
+  gamePaused = false;
+  adsHeld = false;
   hideRewardUI(false);
   closeDevPanel({ relockHint: false });
   controls.unlock();
   overlay.classList.remove("playing");
+  overlay.classList.remove("is-paused");
   overlay.classList.add("is-gameover");
   pausePanel.classList.add("hidden");
   menu.classList.add("hidden");
@@ -1254,6 +1362,7 @@ function startGame() {
   bobPhase = 0;
   overlay.classList.remove("playing");
   overlay.classList.remove("is-gameover");
+  overlay.classList.remove("is-paused");
   menu.classList.add("hidden");
   gameOverPanel.classList.add("hidden");
   pausePanel.classList.add("hidden");
@@ -1274,6 +1383,8 @@ function startGame() {
 
 function returnToMenu() {
   playing = false;
+  gamePaused = false;
+  adsHeld = false;
   hideRewardUI(false);
   closeDevPanel({ relockHint: false });
   loadoutOpen = false;
@@ -1285,6 +1396,7 @@ function returnToMenu() {
   overlay.classList.remove("is-gameover");
   gameOverPanel.classList.add("hidden");
   pausePanel.classList.add("hidden");
+  overlay?.classList.remove("is-paused");
   menu.classList.remove("hidden");
   updateLoadoutSummary();
 }
@@ -1367,7 +1479,7 @@ function readMoveInput() {
 }
 
 function updatePlayer(dt) {
-  if (!playerRoot || rewarding) return;
+  if (!playerRoot || rewarding || gamePaused) return;
   const move = readMoveInput();
   const sprint = keys["ShiftLeft"] || keys["ShiftRight"] || padSprint();
   const speed = (sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * mods.moveSpeed;
@@ -1383,9 +1495,18 @@ function updatePlayer(dt) {
     }
   }
 
+  if (isGrounded()) coyoteTimer = COYOTE_TIME;
+  else coyoteTimer = Math.max(0, coyoteTimer - dt);
+
+  verticalVelocity -= GRAVITY * dt;
+  playerRoot.position.y += verticalVelocity * dt;
+  if (playerRoot.position.y <= GROUND_Y) {
+    playerRoot.position.y = GROUND_Y;
+    if (verticalVelocity < 0) verticalVelocity = 0;
+  }
+
   playerRoot.position.x = THREE.MathUtils.clamp(playerRoot.position.x, -ARENA_SIZE + 1.5, ARENA_SIZE - 1.5);
   playerRoot.position.z = THREE.MathUtils.clamp(playerRoot.position.z, -ARENA_SIZE + 1.5, ARENA_SIZE - 1.5);
-  playerRoot.position.y = 0;
   // Face look direction
   playerRoot.rotation.y = lookYaw;
 
@@ -1525,7 +1646,7 @@ function updateEnemies(dt, now) {
 }
 
 function updateSpawns(dt) {
-  if (rewarding || demoHold) return;
+  if (rewarding || demoHold || gamePaused) return;
   if (state.enemiesSpawned < state.enemiesToSpawn) {
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
@@ -1735,8 +1856,7 @@ function padBtnEdge(name, pressed) {
 function padSprint() {
   const pad = getPad();
   if (!pad) return false;
-  // L3 (10) or LB (4)
-  return padBtn(pad, 10) || padBtn(pad, 4);
+  return padBtn(pad, 1);
 }
 
 function padMoveActive() {
@@ -1851,8 +1971,10 @@ function closeDevPanel({ relockHint = true } = {}) {
   devOpen = false;
   devPanel?.classList.add("hidden");
   if (relockHint && playing && mode === "play" && state.health > 0 && !rewarding) {
-    pausePanel.classList.remove("hidden");
-    overlay.classList.remove("playing");
+    gamePaused = false;
+    pausePanel?.classList.add("hidden");
+    overlay?.classList.remove("is-paused");
+    controls.lock();
   } else if (!playing && mode === "menu") {
     // From title menu — leave landing UI as-is
   }
@@ -1992,11 +2114,16 @@ function nudgeLoadout(dir) {
 }
 
 function pollGamepad(dt) {
+  if (playing && pointerLocked && mode === "play" && !gamePaused) {
+    const padForAds = getPad();
+    adsHeld = Boolean(keys._rmbDown)
+      || (padForAds && ((padForAds.buttons[6]?.value ?? 0) > 0.35 || padBtn(padForAds, 6)));
+  } else if (!keys._rmbDown) {
+    adsHeld = false;
+  }
+
   const pad = getPad();
   if (!pad) {
-    if (!(keys["Mouse0"] || false)) {
-      // mouse handled separately
-    }
     return;
   }
 
@@ -2024,12 +2151,20 @@ function pollGamepad(dt) {
     return;
   }
 
+  if (playing && mode === "play" && !rewarding && !devOpen && padBtnEdge("start", padBtn(pad, 9))) {
+    togglePause();
+    return;
+  }
+
+  if (gamePaused) return;
+
   // Right stick look — axes 2/3 standard; some browsers use 3/4
   const rx = axisDZ(pad.axes[2] ?? 0);
   const ry = axisDZ(pad.axes[3] ?? pad.axes[4] ?? 0);
   if (playing && pointerLocked && mode === "play" && !rewarding) {
-    lookYaw -= rx * PAD_LOOK_SENS * dt;
-    lookPitch -= ry * PAD_LOOK_SENS * dt;
+    const padSens = PAD_LOOK_SENS * lookSensMult();
+    lookYaw -= rx * padSens * dt;
+    lookPitch -= ry * padSens * dt;
     lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
   }
 
@@ -2040,26 +2175,23 @@ function pollGamepad(dt) {
     return;
   }
 
-  // RT (7) or A (0) shoot
-  const padShoot = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4 || padBtn(pad, 0);
+  if (padBtnEdge("jump", padBtn(pad, 0)) && playing && pointerLocked) tryJump();
+  if (!padBtn(pad, 0) && jumpHeld) releaseJump();
+
+  // RT (7) shoot — A (0) is jump only
+  const padShoot = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4;
   if (padShoot) shootHeld = true;
   if (playing && pointerLocked && padShoot) shoot();
 
   // X / Square (2) reload
   if (padBtnEdge("reload", padBtn(pad, 2)) && playing && pointerLocked) tryReload();
 
-  // Y / Triangle (3) camera cycle
-  if (padBtnEdge("cam", padBtn(pad, 3))) cycleCameraMode();
+  // R1 (5) camera cycle
+  if (padBtnEdge("cam", padBtn(pad, 5)) && playing && pointerLocked) cycleCameraMode();
 
-  // LB/RB cycle weapons
-  if (padBtnEdge("wepPrev", padBtn(pad, 4)) && playing) cycleOwnedWeapon(-1);
-  if (padBtnEdge("wepNext", padBtn(pad, 5)) && playing) cycleOwnedWeapon(1);
-
-  // Start (9) pause / unlock
-  if (padBtnEdge("start", padBtn(pad, 9))) {
-    if (playing && pointerLocked) controls.unlock();
-    else if (playing && !pointerLocked && state.health > 0 && !rewarding && !devOpen) controls.lock();
-  }
+  // LB weapon prev · Y / D-pad right weapon next
+  if (padBtnEdge("wepPrev", padBtn(pad, 4)) && playing && pointerLocked) cycleOwnedWeapon(-1);
+  if (playing && pointerLocked && padBtnEdge("wepNext", padBtn(pad, 3) || padBtn(pad, 15))) cycleOwnedWeapon(1);
 }
 
 let lastTime = performance.now();
@@ -2074,14 +2206,18 @@ function animate() {
     // shootHeld set by mousedown/mouseup
   } else {
     const pad = getPad();
-    const padShoot = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4 || padBtn(pad, 0);
+    const padShoot = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4;
     if (!padShoot && !keys._mouseDown) shootHeld = false;
   }
 
   pollGamepad(dt);
+  updateAdsZoom();
 
   if (playing && mode === "play") {
-    if (rewarding) {
+    if (gamePaused) {
+      updateViewmodel(dt);
+      updateFollowCamera(dt);
+    } else if (rewarding) {
       updateViewmodel(dt);
       updateFollowCamera(dt);
       updateAmmoPickups(dt);
@@ -2176,6 +2312,16 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "Digit3") claimRewardCard(2);
     return;
   }
+  if (e.code === "Escape" && playing && mode === "play" && !devOpen && !loadoutOpen) {
+    e.preventDefault();
+    togglePause();
+    return;
+  }
+  if (e.code === "Space" && playing && pointerLocked && !gamePaused) {
+    e.preventDefault();
+    tryJump();
+    return;
+  }
   if (e.code === "KeyR" && playing && pointerLocked) tryReload();
   if (e.code === "KeyQ" && playing) { e.preventDefault(); cycleOwnedWeapon(-1); }
   if (e.code === "Digit1" && playing && ownedWeapons.has("rifle")) equipWeapon("rifle");
@@ -2192,6 +2338,7 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
+  if (e.code === "Space") releaseJump();
 });
 window.addEventListener("mousedown", (e) => {
   if (rewarding || loadoutOpen || devOpen) return;
@@ -2199,6 +2346,7 @@ window.addEventListener("mousedown", (e) => {
     keys._mouseDown = true;
     shootHeld = true;
   }
+  if (e.button === 2) keys._rmbDown = true;
   if (playing && pointerLocked && e.button === 0) shoot();
 });
 window.addEventListener("mouseup", (e) => {
@@ -2206,6 +2354,7 @@ window.addEventListener("mouseup", (e) => {
     keys._mouseDown = false;
     if (!getPad()) shootHeld = false;
   }
+  if (e.button === 2) keys._rmbDown = false;
 });
 window.addEventListener("wheel", (e) => {
   if (!playing || rewarding || loadoutOpen || devOpen) return;
@@ -2269,10 +2418,21 @@ rewardConfirm?.addEventListener("click", (e) => {
 });
 overlay.addEventListener("click", () => {
   if (rewarding || loadoutOpen || devOpen) return;
-  if (playing && !pointerLocked && state.health > 0) {
-    pausePanel.classList.add("hidden");
-    controls.lock();
-  }
+  if (playing && gamePaused && state.health > 0) resumeFromPause();
+});
+pauseResumeBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  resumeFromPause();
+});
+pauseMenuBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  gamePaused = false;
+  pausePanel?.classList.add("hidden");
+  overlay?.classList.remove("is-paused");
+  returnToMenu();
+});
+document.addEventListener("contextmenu", (e) => {
+  if (playing && pointerLocked && mode === "play") e.preventDefault();
 });
 
 initScene();

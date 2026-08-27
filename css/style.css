@@ -574,6 +574,29 @@ body.is-playing {
   font-size: 0.62rem;
 }
 
+.ctrl-or {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #b8966a;
+}
+
+.pad-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 0.35rem;
+  font-family: "Nunito", sans-serif;
+  font-size: 0.58rem;
+  font-weight: 900;
+  color: #2a1408;
+  background: linear-gradient(180deg, #f0d7b0, #d4a574);
+  border: 1px solid #8b5a2b;
+  border-radius: 5px;
+  box-shadow: 0 2px 0 #5a3214;
+}
+
 /* —— Game over —— */
 
 #game-over {
@@ -738,18 +761,62 @@ body.is-playing {
 }
 
 #paused {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  pointer-events: auto;
+  background: radial-gradient(ellipse at center, rgba(10, 6, 2, 0.35), rgba(4, 2, 0, 0.72));
+}
+
+#paused.hidden {
+  display: none;
 }
 
 .pause-card {
-  padding: 1.1rem 1.8rem;
-  background: rgba(42, 24, 10, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: min(92vw, 320px);
+  padding: 1.35rem 1.8rem 1.2rem;
+  background: rgba(42, 24, 10, 0.94);
   border: 3px solid #c4a06a;
   border-radius: 16px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.pause-title {
+  margin: 0 0 0.35rem;
+  font-family: "Bungee", cursive;
+  font-size: 1.65rem;
+  color: #ffe066;
+  text-shadow: 0 3px 0 #5a3208;
+}
+
+.pause-card button {
+  width: 100%;
+  max-width: 240px;
+}
+
+.pause-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #b8966a;
+  text-transform: none;
+}
+
+#overlay.is-paused {
+  background: transparent;
+  pointer-events: none;
 }
 
 /* —— HUD —— */
