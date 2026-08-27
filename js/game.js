@@ -2126,6 +2126,8 @@ window.__poopFpsGiveShotgun = () => {
   demoHold = true;
   enemies.forEach((e) => scene.remove(e));
   enemies = [];
+  state.health = maxHealth();
+  state.reserve = Math.max(state.reserve, 80);
   equipWeapon("shotgun", { announce: true, refill: true });
 };
 window.__poopFpsGiveGatling = () => {
@@ -2133,8 +2135,24 @@ window.__poopFpsGiveGatling = () => {
   demoHold = true;
   enemies.forEach((e) => scene.remove(e));
   enemies = [];
+  state.health = maxHealth();
+  state.reserve = Math.max(state.reserve, 80);
   equipWeapon("gatling", { announce: true, refill: true });
-  gatlingSpin = WEAPONS.gatling.windup;
+  gatlingSpin = WEAPONS.gatling.windup + 0.5;
+  shootHeld = true;
+};
+window.__poopFpsBurstFire = (count = 6) => {
+  demoHold = true;
+  enemies.forEach((e) => scene.remove(e));
+  enemies = [];
+  gatlingSpin = 99;
+  shootHeld = true;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      lastShot = 0;
+      shoot();
+    }, i * 45);
+  }
 };
 window.__poopFpsOpenLoadout = () => openLoadout();
 window.__poopFpsSetLoadout = (gun, extra = "none") => {
