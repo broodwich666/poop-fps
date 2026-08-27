@@ -548,3 +548,14 @@ overlay.addEventListener("click", () => {
 
 initScene();
 animate();
+
+// Test helper for screenshots / demos (force game-over UI)
+window.__poopFpsForceGameOver = () => {
+  if (!playing) startGame();
+  state.score = Math.max(state.score, 1240);
+  state.wave = Math.max(state.wave, 4);
+  state.kills = Math.max(state.kills, 18);
+  state.health = 0;
+  updateHud();
+  endGame();
+};

@@ -77,6 +77,7 @@ body.is-playing {
   pointer-events: auto;
   width: min(520px, calc(100% - 2.5rem));
   padding: 2rem 2.1rem 1.8rem;
+  overflow: visible;
   background:
     linear-gradient(180deg, rgba(92, 56, 24, 0.22), transparent 40%),
     repeating-linear-gradient(
@@ -122,11 +123,6 @@ body.is-playing {
   z-index: 5;
   pointer-events: none;
   animation: coil-bob 2.4s ease-in-out infinite;
-}
-
-.logo-poop {
-  position: relative;
-  z-index: 1;
 }
 
 .logo-row {
