@@ -136,12 +136,12 @@ export function createEnemyPoop(sizeScale = 1) {
 
 export function createViewmodelGun() {
   const vm = new THREE.Group();
-  const gun = createCoiledPoop(1.15, 0x5c3010);
-  gun.rotation.set(0.18, -0.58, 0.08);
+  const gun = createCoiledPoop(1.05, 0x5c3010);
+  gun.rotation.set(0.16, -0.55, 0.07);
   vm.add(gun);
 
-  vm.position.set(0.78, -0.62, -0.72);
-  vm.rotation.set(-0.1, 0.2, 0.06);
+  vm.position.set(0.7, -0.58, -0.76);
+  vm.rotation.set(-0.09, 0.18, 0.05);
   vm.userData.gun = gun;
   return vm;
 }
