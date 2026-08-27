@@ -82,6 +82,19 @@ const loadoutSummary = document.getElementById("loadout-summary");
 const godBadge = document.getElementById("god-badge");
 const devPanel = document.getElementById("dev-panel");
 const devMenuBtn = document.getElementById("dev-menu-btn");
+
+/** DEV cheats only on file://, ?dev=1, or #dev — hidden on public Pages. */
+const devAllowed = (() => {
+  try {
+    if (location.protocol === "file:") return true;
+    if (new URLSearchParams(location.search).get("dev") === "1") return true;
+    const hash = (location.hash || "").replace(/^#/, "").toLowerCase();
+    if (hash === "dev" || hash.startsWith("dev=")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+})();
 const minimapCanvas = document.getElementById("minimap");
 const goMinimapCanvas = document.getElementById("go-minimap");
 const goWaveText = document.getElementById("go-wave-text");
@@ -1788,7 +1801,21 @@ function closeLoadout() {
   updateLoadoutSummary();
 }
 
+function applyDevGate() {
+  if (devAllowed) return;
+  cheatGod = false;
+  cheatInfiniteAmmo = false;
+  devOpen = false;
+  devMenuBtn?.classList.add("hidden");
+  devPanel?.classList.add("hidden");
+  godBadge?.classList.add("hidden");
+}
+
 function updateDevPanelUI() {
+  if (!devAllowed) {
+    godBadge?.classList.add("hidden");
+    return;
+  }
   if (!devPanel) return;
   devPanel.querySelectorAll(".dev-btn").forEach((btn) => {
     const id = btn.dataset.cheat;
@@ -1801,6 +1828,7 @@ function updateDevPanelUI() {
 }
 
 function openDevPanel() {
+  if (!devAllowed) return;
   if (rewarding || loadoutOpen) return;
   if (mode === "gameover") return;
   devOpen = true;
@@ -1832,11 +1860,13 @@ function closeDevPanel({ relockHint = true } = {}) {
 }
 
 function toggleDevPanel() {
+  if (!devAllowed) return;
   if (devOpen) closeDevPanel({ relockHint: playing && mode === "play" });
   else openDevPanel();
 }
 
 function cheatToggleGod() {
+  if (!devAllowed) return;
   cheatGod = !cheatGod;
   updateDevPanelUI();
   showPickupToast(cheatGod ? "GOD MODE ON" : "GOD MODE OFF");
@@ -1844,6 +1874,7 @@ function cheatToggleGod() {
 }
 
 function cheatToggleInfiniteAmmo() {
+  if (!devAllowed) return;
   cheatInfiniteAmmo = !cheatInfiniteAmmo;
   if (cheatInfiniteAmmo) {
     cancelReload(false);
@@ -1858,6 +1889,7 @@ function cheatToggleInfiniteAmmo() {
 }
 
 function cheatUnlockAllGuns() {
+  if (!devAllowed) return;
   WEAPON_IDS.forEach((id) => {
     ownedWeapons.add(id);
     weaponMags[id] = WEAPONS[id].magSize + Math.max(0, mods.magBonus | 0);
@@ -1876,6 +1908,7 @@ function cheatUnlockAllGuns() {
 }
 
 function cheatSkipWave() {
+  if (!devAllowed) return;
   if (!playing || mode !== "play") {
     showPickupToast("START A MATCH FIRST");
     return;
@@ -1900,6 +1933,7 @@ function cheatSkipWave() {
 }
 
 function cheatHealAndRefill() {
+  if (!devAllowed) return;
   state.health = maxHealth();
   cancelReload(false);
   state.mag = magCapacity();
@@ -1916,6 +1950,7 @@ function cheatHealAndRefill() {
 }
 
 function runDevCheat(id) {
+  if (!devAllowed) return;
   switch (id) {
     case "god": cheatToggleGod(); break;
     case "ammo": cheatToggleInfiniteAmmo(); break;
@@ -2093,14 +2128,15 @@ function animate() {
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
 
-  // DEV panel toggle — backtick only (never KeyD / WASD)
+  // DEV panel toggle — backtick only (never KeyD / WASD); gated off on public Pages
   if (e.code === "Backquote" || e.code === "IntlBackslash") {
+    if (!devAllowed) return;
     e.preventDefault();
     toggleDevPanel();
     return;
   }
 
-  if (devOpen) {
+  if (devOpen && devAllowed) {
     if (e.code === "Escape") { e.preventDefault(); closeDevPanel(); return; }
     if (e.code === "Digit1") { e.preventDefault(); runDevCheat("god"); return; }
     if (e.code === "Digit2") { e.preventDefault(); runDevCheat("ammo"); return; }
@@ -2240,6 +2276,7 @@ overlay.addEventListener("click", () => {
 });
 
 initScene();
+applyDevGate();
 updateLoadoutSummary();
 animate();
 
@@ -2356,6 +2393,6 @@ window.__poopFpsSetLoadout = (gun, extra = "none") => {
   updateLoadoutSummary();
   renderLoadoutUI();
 };
-window.__poopFpsOpenDev = () => openDevPanel();
-window.__poopFpsToggleGod = () => cheatToggleGod();
-window.__poopFpsToggleInfiniteAmmo = () => cheatToggleInfiniteAmmo();
+window.__poopFpsOpenDev = () => { if (devAllowed) openDevPanel(); };
+window.__poopFpsToggleGod = () => { if (devAllowed) cheatToggleGod(); };
+window.__poopFpsToggleInfiniteAmmo = () => { if (devAllowed) cheatToggleInfiniteAmmo(); };
