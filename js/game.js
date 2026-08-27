@@ -497,8 +497,8 @@ function updateViewmodel(dt) {
   weaponRecoil = THREE.MathUtils.lerp(weaponRecoil, 0, dt * 12);
   muzzleFlash = Math.max(0, muzzleFlash - dt * 8);
 
-  const base = viewmodel.userData.basePos || new THREE.Vector3(0.48, -0.52, -0.62);
-  const baseRot = viewmodel.userData.baseRot || { x: 0.18, y: 0.55, z: 0.12 };
+  const base = viewmodel.userData.basePos || new THREE.Vector3(0.52, -0.55, -0.88);
+  const baseRot = viewmodel.userData.baseRot || { x: 0.22, y: 0.62, z: 0.14 };
 
   // Walk bob when moving
   const moving = keys["KeyW"] || keys["KeyA"] || keys["KeyS"] || keys["KeyD"];
