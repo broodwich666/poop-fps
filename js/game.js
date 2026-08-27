@@ -18,13 +18,17 @@ const canvas = document.getElementById("game-canvas");
 const overlay = document.getElementById("overlay");
 const menu = document.getElementById("menu");
 const gameOverPanel = document.getElementById("game-over");
+const pausePanel = document.getElementById("paused");
 const hud = document.getElementById("hud");
 const startBtn = document.getElementById("start-btn");
 const restartBtn = document.getElementById("restart-btn");
+const menuBtn = document.getElementById("menu-btn");
 const scoreEl = document.getElementById("score");
 const waveEl = document.getElementById("wave");
 const killsEl = document.getElementById("kills");
 const finalScoreEl = document.getElementById("final-score");
+const finalWaveEl = document.getElementById("final-wave");
+const finalKillsEl = document.getElementById("final-kills");
 const healthFill = document.getElementById("health-fill");
 const healthText = document.getElementById("health-text");
 
@@ -48,11 +52,16 @@ let scene, camera, renderer, controls, viewmodel;
 let projectiles = [];
 let enemies = [];
 let splats = [];
+let scenery = [];
 let playing = false;
 let lastShot = 0;
 let spawnTimer = 0;
 let enemyIdCounter = 0;
 let weaponRecoil = 0;
+
+function formatScore(n) {
+  return n.toLocaleString("en-US");
+}
 
 const state = {
   health: 100,
@@ -95,7 +104,7 @@ function createSplat(position) {
 function initScene() {
   scene = new THREE.Scene();
 
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 160);
   camera.position.set(0, PLAYER_HEIGHT, 0);
 
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -110,6 +119,7 @@ function initScene() {
 
   scene.add(camera);
   viewmodel = createViewmodelGun();
+  viewmodel.visible = false;
   camera.add(viewmodel);
 
   for (let i = 0; i < 12; i++) {
@@ -127,16 +137,52 @@ function initScene() {
   controls.addEventListener("lock", () => {
     if (playing) {
       overlay.classList.add("playing");
+      overlay.classList.remove("is-gameover");
       menu.classList.add("hidden");
       gameOverPanel.classList.add("hidden");
+      pausePanel.classList.add("hidden");
       hud.classList.remove("hidden");
+      document.body.classList.add("is-playing");
     }
   });
   controls.addEventListener("unlock", () => {
+    document.body.classList.remove("is-playing");
     if (playing && state.health > 0) {
       overlay.classList.remove("playing");
+      pausePanel.classList.remove("hidden");
     }
   });
+
+  addMenuScenery();
+  poseMenuCamera();
+}
+
+function clearScenery() {
+  scenery.forEach((obj) => scene.remove(obj));
+  scenery = [];
+}
+
+function addMenuScenery() {
+  clearScenery();
+  const spots = [
+    [-3.2, -8.2, 1.15],
+    [2.8, -11.2, 0.9],
+    [-0.6, -15.8, 1.35],
+    [5.2, -9.6, 0.75],
+  ];
+  spots.forEach(([x, z, s], i) => {
+    const poop = createEnemyPoop(s);
+    poop.position.set(x, 0, z);
+    poop.lookAt(1.15, 0.5, 5.2);
+    poop.userData.wobble = i * 1.3;
+    scene.add(poop);
+    scenery.push(poop);
+  });
+}
+
+function poseMenuCamera() {
+  camera.position.set(1.15, 1.9, 5.2);
+  camera.lookAt(0.15, 1.45, -16);
 }
 
 function resetGame() {
@@ -164,17 +210,17 @@ function resetGame() {
 }
 
 function updateHud() {
-  scoreEl.textContent = state.score;
+  scoreEl.textContent = formatScore(state.score);
   waveEl.textContent = state.wave;
   killsEl.textContent = state.kills;
   healthFill.style.width = `${Math.max(0, state.health)}%`;
   healthText.textContent = Math.max(0, Math.ceil(state.health));
   healthFill.style.background =
     state.health > 50
-      ? "linear-gradient(90deg, #6b8e23, #9acd32)"
+      ? "linear-gradient(180deg, #c6ef63, #6bb32a 55%, #4e8f1c)"
       : state.health > 25
-        ? "linear-gradient(90deg, #b8860b, #daa520)"
-        : "linear-gradient(90deg, #8b0000, #dc143c)";
+        ? "linear-gradient(180deg, #f0d060, #d4a017 55%, #b8860b)"
+        : "linear-gradient(180deg, #ff6b6b, #c62828 55%, #8b0000)";
 }
 
 function spawnEnemyAtEdge() {
@@ -236,27 +282,57 @@ function endGame() {
   playing = false;
   controls.unlock();
   overlay.classList.remove("playing");
+  overlay.classList.add("is-gameover");
   hud.classList.add("hidden");
+  pausePanel.classList.add("hidden");
+  menu.classList.add("hidden");
   gameOverPanel.classList.remove("hidden");
-  finalScoreEl.textContent = state.score;
+  viewmodel.visible = false;
+  finalScoreEl.textContent = formatScore(state.score);
+  finalWaveEl.textContent = state.wave;
+  finalKillsEl.textContent = state.kills;
+  document.body.classList.remove("is-playing");
 }
 
 function startGame() {
+  clearScenery();
   resetGame();
+  camera.position.set(0, PLAYER_HEIGHT, 0);
+  camera.rotation.set(0, 0, 0);
+  camera.quaternion.identity();
   playing = true;
   overlay.classList.remove("playing");
+  overlay.classList.remove("is-gameover");
   menu.classList.add("hidden");
   gameOverPanel.classList.add("hidden");
+  pausePanel.classList.add("hidden");
+  viewmodel.visible = true;
   controls.lock();
+}
+
+function returnToMenu() {
+  playing = false;
+  clearScenery();
+  resetGame();
+  addMenuScenery();
+  poseMenuCamera();
+  overlay.classList.remove("playing");
+  overlay.classList.remove("is-gameover");
+  gameOverPanel.classList.add("hidden");
+  pausePanel.classList.add("hidden");
+  hud.classList.add("hidden");
+  menu.classList.remove("hidden");
+  viewmodel.visible = false;
+  document.body.classList.remove("is-playing");
 }
 
 function updateViewmodel(dt) {
   weaponRecoil = THREE.MathUtils.lerp(weaponRecoil, 0, dt * 14);
-  viewmodel.position.z = -0.82 + weaponRecoil * 0.18;
-  viewmodel.position.y = -0.48 - weaponRecoil * 0.06;
-  viewmodel.rotation.x = -0.06 - weaponRecoil * 0.35;
+  viewmodel.position.z = -0.76 + weaponRecoil * 0.18;
+  viewmodel.position.y = -0.58 - weaponRecoil * 0.06;
+  viewmodel.rotation.x = -0.09 - weaponRecoil * 0.35;
   if (viewmodel.userData.gun) {
-    viewmodel.userData.gun.rotation.y = -0.5 - weaponRecoil * 0.15;
+    viewmodel.userData.gun.rotation.y = -0.55 - weaponRecoil * 0.15;
   }
 }
 
@@ -423,6 +499,12 @@ function animate() {
     updateSplats(dt);
   } else if (viewmodel) {
     updateViewmodel(dt);
+    scenery.forEach((obj) => {
+      obj.userData.wobble = (obj.userData.wobble || 0) + dt * 2.2;
+      if (obj.userData.body) {
+        obj.userData.body.rotation.y = Math.sin(obj.userData.wobble) * 0.12;
+      }
+    });
   }
 
   renderer.render(scene, camera);
@@ -443,8 +525,24 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-startBtn.addEventListener("click", startGame);
-restartBtn.addEventListener("click", startGame);
+startBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  startGame();
+});
+restartBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  startGame();
+});
+menuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  returnToMenu();
+});
+overlay.addEventListener("click", () => {
+  if (playing && !controls.isLocked && state.health > 0) {
+    pausePanel.classList.add("hidden");
+    controls.lock();
+  }
+});
 
 initScene();
 animate();
