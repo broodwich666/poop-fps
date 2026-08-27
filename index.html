@@ -76,10 +76,12 @@
     <div id="menu">
       <div class="menu-card">
         <div class="logo">
-          <svg class="logo-coil" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smile" /></svg>
           <div class="logo-row">
             <svg class="mascot mascot-left" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smile" /></svg>
-            <h1 class="logo-poop">POOP</h1>
+            <div class="logo-poop-wrap">
+              <svg class="logo-coil" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-swirl" /></svg>
+              <h1 class="logo-poop">POOP</h1>
+            </div>
             <svg class="mascot mascot-right" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smile" /></svg>
           </div>
           <h2 class="logo-shooter">SHOOTER</h2>
@@ -156,8 +158,8 @@
       <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart" /></svg>
       <div id="health-bar">
         <div id="health-fill"></div>
+        <span id="health-text">100</span>
       </div>
-      <span id="health-text">100</span>
     </div>
     <div id="stats">
       <div class="stat"><span class="label">Score</span><strong id="score" class="stat-score">0</strong></div>

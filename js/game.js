@@ -328,11 +328,11 @@ function returnToMenu() {
 
 function updateViewmodel(dt) {
   weaponRecoil = THREE.MathUtils.lerp(weaponRecoil, 0, dt * 14);
-  viewmodel.position.z = -0.82 + weaponRecoil * 0.18;
-  viewmodel.position.y = -0.48 - weaponRecoil * 0.06;
-  viewmodel.rotation.x = -0.06 - weaponRecoil * 0.35;
+  viewmodel.position.z = -0.72 + weaponRecoil * 0.18;
+  viewmodel.position.y = -0.62 - weaponRecoil * 0.06;
+  viewmodel.rotation.x = -0.1 - weaponRecoil * 0.35;
   if (viewmodel.userData.gun) {
-    viewmodel.userData.gun.rotation.y = -0.5 - weaponRecoil * 0.15;
+    viewmodel.userData.gun.rotation.y = -0.58 - weaponRecoil * 0.15;
   }
 }
 

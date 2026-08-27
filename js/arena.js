@@ -107,9 +107,12 @@ function makeSignTexture() {
   ctx.lineWidth = 4;
   ctx.strokeRect(22, 22, 724, 212);
 
-  drawPoopIcon(ctx, 108, 128, 86);
+  drawPoopIcon(ctx, 98, 128, 92);
 
-  ctx.font = "900 92px Arial Black, Arial, sans-serif";
+  const titleFont = document.fonts?.check?.('900 92px "Luckiest Guy"')
+    ? '900 92px "Luckiest Guy", "Arial Black", Arial, sans-serif'
+    : "900 92px Arial Black, Arial, sans-serif";
+  ctx.font = titleFont;
   ctx.fillStyle = "#3d1e08";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";

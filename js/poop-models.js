@@ -70,40 +70,48 @@ export function createCoiledPoop(scale = 1, color = 0x9b5523) {
 
 export function createAngryFace(scale = 1) {
   const face = new THREE.Group();
-  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.32 });
-  const black = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.45 });
-  const browMat = new THREE.MeshStandardMaterial({ color: 0x120804, roughness: 0.65 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.28 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x0a0604, roughness: 0.4 });
+  const browMat = new THREE.MeshStandardMaterial({ color: 0x0d0603, roughness: 0.7 });
 
-  const eyeRadius = 0.17 * scale;
-  const eyeY = 0.7 * scale;
-  const eyeZ = 0.52 * scale;
-  const eyeSpacing = 0.205 * scale;
+  const eyeRadius = 0.2 * scale;
+  const eyeY = 0.72 * scale;
+  const eyeZ = 0.55 * scale;
+  const eyeSpacing = 0.22 * scale;
 
   [-1, 1].forEach((side) => {
     const x = side * eyeSpacing;
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 14, 14), white);
-    eye.scale.set(1, 1.08, 0.7);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 16, 16), white);
+    eye.scale.set(1.05, 1.12, 0.68);
     eye.position.set(x, eyeY, eyeZ);
     face.add(eye);
 
-    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.4, 10, 10), black);
-    pupil.position.set(x + side * 0.012 * scale, eyeY - 0.02 * scale, eyeZ + eyeRadius * 0.38);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius * 0.42, 12, 12), black);
+    pupil.position.set(x + side * 0.01 * scale, eyeY - 0.015 * scale, eyeZ + eyeRadius * 0.42);
     face.add(pupil);
 
     const brow = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34 * scale, 0.1 * scale, 0.09 * scale),
+      new THREE.BoxGeometry(0.4 * scale, 0.11 * scale, 0.1 * scale),
       browMat
     );
-    brow.position.set(x, eyeY + 0.155 * scale, eyeZ + 0.09 * scale);
-    brow.rotation.z = side > 0 ? -0.72 : 0.72;
+    brow.position.set(x, eyeY + 0.175 * scale, eyeZ + 0.1 * scale);
+    brow.rotation.z = side > 0 ? -0.85 : 0.85;
     face.add(brow);
   });
 
-  const mouth = new THREE.Mesh(
-    new THREE.TorusGeometry(0.11 * scale, 0.024 * scale, 8, 16, Math.PI),
-    black
+  // Angry downturned mouth (mockup frown)
+  const mouthGeo = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.13 * scale, 0.52 * scale, eyeZ + 0.02 * scale),
+      new THREE.Vector3(0, 0.44 * scale, eyeZ + 0.04 * scale),
+      new THREE.Vector3(0.13 * scale, 0.52 * scale, eyeZ + 0.02 * scale),
+    ]),
+    10,
+    0.028 * scale,
+    6,
+    false
   );
-  mouth.position.set(0, 0.5 * scale, eyeZ);
+  const mouth = new THREE.Mesh(mouthGeo, black);
   face.add(mouth);
 
   return face;
@@ -128,12 +136,12 @@ export function createEnemyPoop(sizeScale = 1) {
 
 export function createViewmodelGun() {
   const vm = new THREE.Group();
-  const gun = createCoiledPoop(0.95, 0x5c3010);
-  gun.rotation.set(0.14, -0.52, 0.06);
+  const gun = createCoiledPoop(1.15, 0x5c3010);
+  gun.rotation.set(0.18, -0.58, 0.08);
   vm.add(gun);
 
-  vm.position.set(0.62, -0.5, -0.78);
-  vm.rotation.set(-0.08, 0.16, 0.05);
+  vm.position.set(0.78, -0.62, -0.72);
+  vm.rotation.set(-0.1, 0.2, 0.06);
   vm.userData.gun = gun;
   return vm;
 }
