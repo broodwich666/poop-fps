@@ -157,21 +157,52 @@
 
   <div id="hud" class="hidden">
     <div id="damage-vignette" aria-hidden="true"></div>
-    <div id="health-panel">
-      <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart" /></svg>
-      <div id="health-bar">
-        <div id="health-fill"></div>
-        <span id="health-text">100</span>
+
+    <!-- Gameplay mockup HUD -->
+    <div id="play-hud">
+      <div id="health-panel">
+        <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart" /></svg>
+        <div id="health-bar">
+          <div id="health-fill"></div>
+          <span id="health-text">100</span>
+        </div>
+      </div>
+      <div id="stats">
+        <div class="stat"><span class="label">Score</span><strong id="score" class="stat-score">0</strong></div>
+        <div class="stat"><span class="label">Wave</span><strong id="wave" class="stat-wave">1</strong></div>
+        <div class="stat"><span class="label">Kills</span><strong id="kills" class="stat-kills">0</strong></div>
+      </div>
+      <div id="ammo-panel">
+        <strong id="ammo-text">12/96</strong>
+        <div class="ammo-bullets" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+      <div id="minimap-wrap">
+        <canvas id="minimap" width="140" height="140"></canvas>
+      </div>
+      <div id="wave-toast" class="hidden" aria-live="polite">WAVE <span id="wave-toast-num">1</span></div>
+      <div id="crosshair"><span></span><span></span></div>
+      <div id="hit-marker" aria-hidden="true"></div>
+    </div>
+
+    <!-- Game-over mockup chrome (shown with bathroom + board) -->
+    <div id="go-hud" class="hidden">
+      <div id="go-wave-badge">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-swirl" /></svg>
+        <span>WAVE <strong id="go-wave-text">1/10</strong></span>
+      </div>
+      <div id="go-minimap-wrap">
+        <canvas id="go-minimap" width="120" height="120"></canvas>
+      </div>
+      <div id="go-health-panel">
+        <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart" /></svg>
+        <div id="go-health-bar"><div id="go-health-fill"></div></div>
+        <span id="go-health-text">0</span>
+      </div>
+      <div id="go-ammo-panel">
+        <strong id="go-ammo-text">12/96</strong>
+        <div class="ammo-bullets" aria-hidden="true"><span></span><span></span><span></span></div>
       </div>
     </div>
-    <div id="stats">
-      <div class="stat"><span class="label">Score</span><strong id="score" class="stat-score">0</strong></div>
-      <div class="stat"><span class="label">Wave</span><strong id="wave" class="stat-wave">1</strong></div>
-      <div class="stat"><span class="label">Kills</span><strong id="kills" class="stat-kills">0</strong></div>
-    </div>
-    <div id="wave-toast" class="hidden" aria-live="polite">WAVE <span id="wave-toast-num">1</span></div>
-    <div id="crosshair"><span></span><span></span></div>
-    <div id="hit-marker" aria-hidden="true"></div>
   </div>
 
   <canvas id="game-canvas"></canvas>

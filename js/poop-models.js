@@ -137,13 +137,13 @@ export function createEnemyPoop(sizeScale = 1) {
 
 export function createViewmodelGun() {
   const vm = new THREE.Group();
-  // Corner-framed coil: height ~0.3m at ~0.9m depth ≈ ~20% of vertical FOV @ 75°
-  const gun = createCoiledPoop(0.28, 0x5c3010);
-  gun.rotation.set(0.4, -0.95, 0.22);
+  // Gameplay mockup: large glossy swirl in lower-right (dominant but not center)
+  const gun = createCoiledPoop(0.95, 0x5c3010);
+  gun.rotation.set(0.2, -0.55, 0.08);
   vm.add(gun);
 
   const muzzle = new THREE.Mesh(
-    new THREE.SphereGeometry(0.035, 8, 8),
+    new THREE.SphereGeometry(0.06, 8, 8),
     new THREE.MeshBasicMaterial({
       color: 0xffcc66,
       transparent: true,
@@ -151,13 +151,51 @@ export function createViewmodelGun() {
       depthWrite: false,
     })
   );
-  muzzle.position.set(0.04, 0.28, 0.16);
+  muzzle.position.set(0.06, 0.72, 0.32);
   gun.add(muzzle);
 
-  vm.position.set(0.52, -0.55, -0.88);
-  vm.rotation.set(0.22, 0.62, 0.14);
+  vm.position.set(0.55, -0.48, -0.7);
+  vm.rotation.set(0.05, 0.28, 0.06);
   vm.userData.gun = gun;
   vm.userData.muzzle = muzzle;
+  vm.userData.basePos = vm.position.clone();
+  vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
+  return vm;
+}
+
+/** Dark tactical rifle for game-over mockup viewmodel */
+export function createRifleViewmodel() {
+  const vm = new THREE.Group();
+  const black = new THREE.MeshStandardMaterial({ color: 0x1a1c1e, roughness: 0.45, metalness: 0.55 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x2a2e32, roughness: 0.5, metalness: 0.4 });
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.7), black);
+  receiver.position.set(0, 0, -0.1);
+  vm.add(receiver);
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.85, 10), dark);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.02, -0.75);
+  vm.add(barrel);
+
+  const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.45), dark);
+  handguard.position.set(0, -0.02, -0.45);
+  vm.add(handguard);
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.35), black);
+  stock.position.set(0, -0.02, 0.4);
+  vm.add(stock);
+
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.28, 0.16), black);
+  mag.position.set(0, -0.2, -0.05);
+  vm.add(mag);
+
+  const sight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.12), dark);
+  sight.position.set(0, 0.16, -0.25);
+  vm.add(sight);
+
+  vm.position.set(0.42, -0.38, -0.55);
+  vm.rotation.set(0.08, 0.15, 0.05);
   vm.userData.basePos = vm.position.clone();
   vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
   return vm;
