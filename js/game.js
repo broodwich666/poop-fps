@@ -12,13 +12,16 @@ import {
 } from "./arena.js";
 import {
   createAmmoPickup,
+  createBoomerangProjectileMesh,
   createEnemyPoop,
   createGrenadeProjectileMesh,
   createHeldGatling,
   createHeldGrenade,
   createHeldGun,
+  createHeldPlunger,
   createHeldRocket,
   createHeldShotgun,
+  createMineProjectileMesh,
   createPlayerPoop,
   createProjectileMesh,
   createRocketProjectileMesh,
@@ -27,6 +30,7 @@ import {
   createViewmodelGatling,
   createViewmodelGrenade,
   createViewmodelGun,
+  createViewmodelPlunger,
   createViewmodelRocket,
   createViewmodelShotgun,
 } from "./poop-models.js";
@@ -36,11 +40,16 @@ import {
   rollOffer,
 } from "./powerups.js";
 import {
+  ARCHETYPES,
+  ARCHETYPE_LABELS,
   LOADOUT_EXTRAS,
   WEAPON_IDS,
   WEAPONS,
   createLoadoutState,
+  getWeaponArchetype,
+  randomWeaponId,
   weaponLabel,
+  weaponsForArchetype,
 } from "./weapons.js";
 
 const canvas = document.getElementById("game-canvas");
@@ -86,6 +95,8 @@ const loadoutConfirm = document.getElementById("loadout-confirm");
 const loadoutStart = document.getElementById("loadout-start");
 const loadoutGuns = document.getElementById("loadout-guns");
 const loadoutExtras = document.getElementById("loadout-extras");
+const loadoutTabs = document.getElementById("loadout-tabs");
+const loadoutRandom = document.getElementById("loadout-random");
 const loadoutSummary = document.getElementById("loadout-summary");
 const godBadge = document.getElementById("god-badge");
 const devPanel = document.getElementById("dev-panel");
@@ -121,9 +132,16 @@ let loadoutFocus = { section: "gun", index: 0 };
 const loadout = createLoadoutState();
 let ownedWeapons = new Set(["rifle"]);
 let activeWeaponId = "rifle";
-const weaponMags = { rifle: 12, shotgun: 6, gatling: 60, grenade: 3, rocket: 4 };
+const weaponMags = {};
+WEAPON_IDS.forEach((id) => {
+  weaponMags[id] = WEAPONS[id]?.magSize ?? 12;
+});
 let gatlingSpin = 0;
 let grenadeHoldT = 0;
+let loadoutFilterArch = "all";
+let deployables = [];
+let heldArchetypeModels = {};
+let viewmodelArchetypeGuns = {};
 let shootHeld = false;
 let devOpen = false;
 let cheatGod = false;
@@ -350,27 +368,41 @@ const sfxPowerUp = () => {
 };
 const sfxWeaponSwap = () => playTone({ freq: 280, dur: 0.06, type: "triangle", gain: 0.04, slide: 90 });
 
-function sfxShootFor(weaponId) {
-  if (weaponId === "shotgun") {
+function sfxShootFor(archOrId) {
+  const arch = WEAPONS[archOrId]?.archetype || archOrId;
+  if (arch === "shotgun") {
     playTone({ freq: 90, dur: 0.12, type: "sawtooth", gain: 0.07, slide: -70 });
     playTone({ freq: 180, dur: 0.08, type: "square", gain: 0.04, slide: -120 });
     playTone({ freq: 55, dur: 0.14, type: "triangle", gain: 0.05, slide: -20 });
     return;
   }
-  if (weaponId === "gatling") {
+  if (arch === "gatling") {
     playTone({ freq: 240, dur: 0.035, type: "square", gain: 0.03, slide: -80 });
     playTone({ freq: 520, dur: 0.025, type: "triangle", gain: 0.018, slide: -160 });
     return;
   }
-  if (weaponId === "grenade") {
+  if (arch === "grenade" || arch === "mine" || arch === "puddle") {
     playTone({ freq: 180, dur: 0.09, type: "triangle", gain: 0.05, slide: 60 });
     playTone({ freq: 95, dur: 0.12, type: "sawtooth", gain: 0.04, slide: -30 });
     return;
   }
-  if (weaponId === "rocket") {
+  if (arch === "rocket" || arch === "turret") {
     playTone({ freq: 120, dur: 0.14, type: "sawtooth", gain: 0.06, slide: 80 });
     playTone({ freq: 60, dur: 0.18, type: "triangle", gain: 0.05, slide: -20 });
     playTone({ freq: 280, dur: 0.08, type: "square", gain: 0.03, slide: -120 });
+    return;
+  }
+  if (arch === "plunger") {
+    playTone({ freq: 75, dur: 0.08, type: "square", gain: 0.06, slide: -25 });
+    return;
+  }
+  if (arch === "boomerang") {
+    playTone({ freq: 320, dur: 0.06, type: "triangle", gain: 0.04, slide: 80 });
+    return;
+  }
+  if (arch === "sniper") {
+    playTone({ freq: 220, dur: 0.1, type: "triangle", gain: 0.055, slide: -120 });
+    playTone({ freq: 80, dur: 0.14, type: "sawtooth", gain: 0.04, slide: -30 });
     return;
   }
   playTone({ freq: 160, dur: 0.07, type: "triangle", gain: 0.06, slide: -90 });
@@ -545,7 +577,8 @@ function applyCameraModeVisuals() {
     if (g) g.visible = false;
   });
   if (mode === "play" && m.showVM) {
-    activeViewmodel = viewmodelGuns[activeWeaponId] || swirlGun;
+    const arch = getWeaponArchetype(activeWeaponId);
+    activeViewmodel = viewmodelArchetypeGuns[arch] || swirlGun;
     if (activeViewmodel) activeViewmodel.visible = true;
   } else if (mode === "gameover") {
     activeViewmodel = rifleGun;
@@ -585,32 +618,50 @@ function setViewmodel(kind) {
   }
 }
 
+function applyWeaponVisuals(wpn) {
+  const arch = getWeaponArchetype(wpn.id);
+  Object.entries(heldArchetypeModels).forEach(([key, g]) => {
+    if (!g) return;
+    g.visible = false;
+    const sc = key === arch ? (wpn.modelScale || 1) : (g.userData.baseScale || 1);
+    g.scale.setScalar(sc);
+  });
+  Object.entries(viewmodelArchetypeGuns).forEach(([key, g]) => {
+    if (!g) return;
+    g.visible = false;
+  });
+  heldGun = heldArchetypeModels[arch] || heldArchetypeModels.rifle;
+  if (heldGun) {
+    heldGun.visible = mode === "play" && currentCamMode().showHeld;
+    if (wpn.color) {
+      heldGun.traverse((child) => {
+        if (child.isMesh && child.material?.color) {
+          if (!child.userData._baseColor) child.userData._baseColor = child.material.color.getHex();
+          child.material.color.setHex(wpn.color);
+        }
+      });
+    }
+  }
+}
+
 function equipWeapon(id, { announce = true, refill = false } = {}) {
   if (!WEAPONS[id]) return;
+  const wpn = WEAPONS[id];
   const already = ownedWeapons.has(id);
   ownedWeapons.add(id);
   syncMagFromState();
   cancelReload(false);
   activeWeaponId = id;
   if (refill || !already) {
-    weaponMags[id] = WEAPONS[id].magSize + Math.max(0, mods.magBonus | 0);
+    weaponMags[id] = wpn.magSize + Math.max(0, mods.magBonus | 0);
   }
   loadMagIntoState();
   gatlingSpin = 0;
 
-  // Swap held model
-  Object.values(heldGunModels).forEach((g) => {
-    if (g) g.visible = false;
-  });
-  heldGun = heldGunModels[id] || heldGunModels.rifle;
-  if (heldGun) {
-    heldGun.visible = mode === "play" && currentCamMode().showHeld;
-    heldGun.position.set(heldGunBase.x, heldGunBase.y, heldGunBase.z);
-    heldGun.rotation.set(0.05, 0.08, 0.12);
-  }
+  applyWeaponVisuals(wpn);
   applyCameraModeVisuals();
   sfxWeaponSwap();
-  if (announce) showPickupToast(already && !refill ? `${WEAPONS[id].name} READY` : `EQUIPPED ${WEAPONS[id].name}`);
+  if (announce) showPickupToast(already && !refill ? `${wpn.name} READY` : `EQUIPPED ${wpn.name}`);
   updateHud();
 }
 
@@ -737,32 +788,47 @@ function initScene() {
   playerBody = createPlayerPoop(1.05);
   playerRoot.add(playerBody);
 
-  heldGunModels = {
+  heldArchetypeModels = {
     rifle: createHeldGun(),
     shotgun: createHeldShotgun(),
     gatling: createHeldGatling(),
     grenade: createHeldGrenade(),
     rocket: createHeldRocket(),
+    mine: createHeldGrenade(),
+    plunger: createHeldPlunger(),
+    sniper: createHeldGun(),
+    puddle: createHeldGrenade(),
+    turret: createHeldRocket(),
+    boomerang: createHeldGrenade(),
   };
-  Object.values(heldGunModels).forEach((g) => {
+  heldGunModels = heldArchetypeModels;
+  Object.values(heldArchetypeModels).forEach((g) => {
     g.position.set(heldGunBase.x, heldGunBase.y, heldGunBase.z);
     g.rotation.set(0.05, 0.08, 0.12);
     g.visible = false;
+    g.userData.baseScale = 1;
     playerRoot.add(g);
   });
-  heldGun = heldGunModels.rifle;
+  heldGun = heldArchetypeModels.rifle;
   heldGun.visible = false;
   scene.add(playerRoot);
 
   // FP viewmodels + game-over rifle stay parented to camera
-  viewmodelGuns = {
+  viewmodelArchetypeGuns = {
     rifle: createViewmodelGun(),
     shotgun: createViewmodelShotgun(),
     gatling: createViewmodelGatling(),
     grenade: createViewmodelGrenade(),
     rocket: createViewmodelRocket(),
+    mine: createViewmodelGrenade(),
+    plunger: createViewmodelPlunger(),
+    sniper: createViewmodelGun(),
+    puddle: createViewmodelGrenade(),
+    turret: createViewmodelRocket(),
+    boomerang: createViewmodelGrenade(),
   };
-  swirlGun = viewmodelGuns.rifle;
+  viewmodelGuns = viewmodelArchetypeGuns;
+  swirlGun = viewmodelArchetypeGuns.rifle;
   rifleGun = createRifleViewmodel();
   Object.values(viewmodelGuns).forEach((g) => {
     g.visible = false;
@@ -830,6 +896,8 @@ function clearCombat() {
   splats.forEach((s) => {
     if (!s.userData.permanent) scene.remove(s);
   });
+  deployables.forEach((d) => { if (d.mesh) scene.remove(d.mesh); });
+  deployables = [];
   projectiles = [];
   fxBits = [];
   enemies = [];
@@ -1153,7 +1221,8 @@ function getAimForward(spreadYaw = 0, spreadPitch = 0) {
 function getMuzzleSpawnPos(forward) {
   const spawnPos = new THREE.Vector3();
   const cam = currentCamMode();
-  const vm = viewmodelGuns[activeWeaponId];
+  const arch = getWeaponArchetype(activeWeaponId);
+  const vm = viewmodelArchetypeGuns[arch];
   if (cam.showVM && vm?.userData?.muzzle) {
     vm.userData.muzzle.getWorldPosition(spawnPos);
   } else if (heldGun?.userData?.muzzle) {
@@ -1167,6 +1236,8 @@ function getMuzzleSpawnPos(forward) {
 }
 
 function explodeAt(pos, { radius = 4, splashDamage = 3, selfDamageScale = 0.3, kind = "grenade" } = {}) {
+  const splashR = radius * (mods.splashMult || 1);
+  const splashD = splashDamage * (mods.splashDamageMult || 1);
   const blastPos = pos.clone();
   blastPos.y = Math.max(0.12, blastPos.y);
   createSplat(blastPos);
@@ -1193,8 +1264,8 @@ function explodeAt(pos, { radius = 4, splashDamage = 3, selfDamageScale = 0.3, k
 
   const playerPos = getPlayerPos();
   const playerDist = Math.hypot(playerPos.x - blastPos.x, playerPos.z - blastPos.z);
-  if (playerDist < radius) {
-    const falloff = 1 - playerDist / radius;
+  if (playerDist < splashR) {
+    const falloff = 1 - playerDist / splashR;
     const base = kind === "rocket" ? 20 : 14;
     hurtPlayer(base * selfDamageScale * falloff);
   }
@@ -1203,10 +1274,146 @@ function explodeAt(pos, { radius = 4, splashDamage = 3, selfDamageScale = 0.3, k
   victims.forEach((enemy) => {
     const ec = enemyCenter(enemy);
     const dist = ec.distanceTo(blastPos);
-    if (dist < radius) {
-      const falloff = 1 - dist / radius;
-      damageEnemy(enemy, blastPos.clone(), splashDamage * falloff);
+    if (dist < splashR) {
+      const falloff = 1 - dist / splashR;
+      damageEnemy(enemy, blastPos.clone(), splashD * falloff);
     }
+  });
+}
+
+function spawnPuddle(pos, wpn) {
+  const radius = (wpn.puddleRadius || 3.5) * (mods.splashMult || 1);
+  const mesh = createMockupSplat(pos);
+  mesh.scale.setScalar(radius * 0.35);
+  scene.add(mesh);
+  deployables.push({
+    type: "puddle",
+    mesh,
+    position: pos.clone(),
+    radius,
+    life: (wpn.puddleDuration || 5) * (mods.puddleMult || 1),
+    dps: (wpn.puddleDps || 1) * (mods.puddleMult || 1) * mods.damage,
+    tick: 0,
+  });
+}
+
+function spawnTurret(pos, wpn) {
+  const group = createHeldGatling();
+  group.scale.setScalar(0.55);
+  group.position.copy(pos);
+  group.position.y = 0.2;
+  scene.add(group);
+  deployables.push({
+    type: "turret",
+    mesh: group,
+    position: pos.clone(),
+    life: (wpn.turretDuration || 20) * (mods.turretMult || 1),
+    fireRate: wpn.turretFireRate || 0.5,
+    range: wpn.turretRange || 14,
+    damage: (wpn.damage || 0.8) * mods.damage,
+    fireTimer: 0,
+  });
+}
+
+function spawnMine(pos, wpn) {
+  const mesh = createMineProjectileMesh();
+  mesh.position.copy(pos);
+  mesh.position.y = 0.15;
+  scene.add(mesh);
+  deployables.push({
+    type: "mine",
+    mesh,
+    position: pos.clone(),
+    armed: false,
+    armTimer: wpn.armTime || 0.5,
+    triggerRadius: (wpn.triggerRadius || 2) * (mods.splashMult || 1),
+    splashRadius: wpn.splashRadius,
+    splashDamage: wpn.splashDamage,
+    selfDamageScale: wpn.selfDamageScale,
+  });
+}
+
+function updateDeployables(dt) {
+  deployables = deployables.filter((d) => {
+    if (d.type === "mine") {
+      if (!d.armed) {
+        d.armTimer -= dt;
+        if (d.armTimer <= 0) d.armed = true;
+      } else {
+        for (const enemy of enemies) {
+          const dist = enemyCenter(enemy).distanceTo(d.position);
+          if (dist < d.triggerRadius) {
+            explodeAt(d.position, {
+              radius: d.splashRadius,
+              splashDamage: d.splashDamage,
+              selfDamageScale: d.selfDamageScale,
+              kind: "grenade",
+            });
+            scene.remove(d.mesh);
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+    if (d.type === "puddle") {
+      d.life -= dt;
+      d.tick -= dt;
+      if (d.tick <= 0) {
+        d.tick = 0.45;
+        enemies.forEach((enemy) => {
+          const dist = enemyCenter(enemy).distanceTo(d.position);
+          if (dist < d.radius) damageEnemy(enemy, d.position.clone(), d.dps * 0.45);
+        });
+      }
+      if (d.life <= 0) {
+        scene.remove(d.mesh);
+        return false;
+      }
+      return true;
+    }
+    if (d.type === "turret") {
+      d.life -= dt;
+      d.fireTimer -= dt;
+      if (d.mesh) d.mesh.rotation.y += dt * 2.5;
+      if (d.fireTimer <= 0 && enemies.length) {
+        const playerPos = d.position;
+        let nearest = null;
+        let nd = Infinity;
+        enemies.forEach((e) => {
+          const dist = enemyCenter(e).distanceTo(playerPos);
+          if (dist < nd && dist < d.range) { nd = dist; nearest = e; }
+        });
+        if (nearest) {
+          d.fireTimer = d.fireRate;
+          const ec = enemyCenter(nearest);
+          const dir = ec.clone().sub(playerPos).normalize();
+          const mesh = createProjectileMesh();
+          mesh.position.copy(playerPos).add(new THREE.Vector3(0, 0.5, 0));
+          scene.add(mesh);
+          projectiles.push({
+            mesh,
+            velocity: dir.multiplyScalar(28),
+            life: 1.2,
+            kind: "bullet",
+            trail: [],
+            trailTimer: 0,
+            bounceLeft: 0,
+            pierceLeft: 0,
+            hitIds: new Set(),
+            radius: 0.18,
+            damage: d.damage,
+          });
+          sfxShootFor("rifle");
+        }
+      }
+      if (d.life <= 0) {
+        scene.remove(d.mesh);
+        return false;
+      }
+      return true;
+    }
+    return false;
   });
 }
 
@@ -1230,7 +1437,7 @@ function fireGrenade(spreadYaw = 0, spreadPitch = 0) {
     velocity,
     life: wpn.projectileLife,
     kind: "grenade",
-    fuse: Math.max(0.35, (wpn.fuseTime || 1.75) - cooked * 0.9),
+    fuse: Math.max(0.35, ((wpn.fuseTime || 1.75) - cooked * 0.9) * (mods.fuseMult || 1)),
     bounceLeft: 1,
     gravity: true,
     splashRadius: wpn.splashRadius,
@@ -1254,7 +1461,7 @@ function fireRocket(spreadYaw = 0, spreadPitch = 0) {
   mesh.lookAt(spawnPos.clone().add(forward));
   scene.add(mesh);
 
-  const speed = wpn.projectileSpeed * mods.bulletSpeed;
+  const speed = wpn.projectileSpeed * mods.bulletSpeed * (mods.rocketSpeedMult || 1);
   projectiles.push({
     mesh,
     velocity: forward.clone().multiplyScalar(speed),
@@ -1269,6 +1476,120 @@ function fireRocket(spreadYaw = 0, spreadPitch = 0) {
     trailTimer: 0,
     hitIds: new Set(),
     radius: 0.28,
+    damage: wpn.damage,
+  });
+}
+
+function fireMine(spreadYaw = 0, spreadPitch = 0) {
+  const wpn = activeWeapon();
+  const forward = getAimForward(spreadYaw, spreadPitch);
+  const mesh = createMineProjectileMesh();
+  mesh.scale.setScalar(mods.bulletScale);
+  const spawnPos = getMuzzleSpawnPos(forward);
+  mesh.position.copy(spawnPos);
+  scene.add(mesh);
+  const speed = wpn.projectileSpeed * mods.bulletSpeed;
+  const velocity = forward.clone().multiplyScalar(speed);
+  velocity.y += wpn.throwArc || 5;
+  projectiles.push({
+    mesh,
+    velocity,
+    life: wpn.projectileLife,
+    kind: "mine",
+    gravity: true,
+    bounceLeft: 0,
+    wpnStats: wpn,
+    trail: [],
+    trailTimer: 0,
+    hitIds: new Set(),
+    radius: 0.24,
+    damage: 0,
+  });
+}
+
+function fireMelee() {
+  const wpn = activeWeapon();
+  const range = wpn.meleeRange || 2.5;
+  const playerPos = getPlayerPos();
+  let hits = 0;
+  enemies.forEach((enemy) => {
+    const ec = enemyCenter(enemy);
+    const dx = ec.x - playerPos.x;
+    const dz = ec.z - playerPos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > range) return;
+    let diff = lookYaw - Math.atan2(dx, dz);
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    if (Math.abs(diff) < 1.05) {
+      damageEnemy(enemy, ec, wpn.damage);
+      hits++;
+    }
+  });
+  playTone({ freq: 90, dur: 0.1, type: "sawtooth", gain: 0.07, slide: -40 });
+  if (hits) shakeAmp = Math.max(shakeAmp, 0.05);
+}
+
+function firePuddleBomb(spreadYaw = 0, spreadPitch = 0) {
+  const wpn = activeWeapon();
+  const forward = getAimForward(spreadYaw, spreadPitch);
+  const mesh = createGrenadeProjectileMesh();
+  mesh.scale.setScalar(mods.bulletScale * 0.9);
+  const spawnPos = getMuzzleSpawnPos(forward);
+  mesh.position.copy(spawnPos);
+  scene.add(mesh);
+  const speed = wpn.projectileSpeed * mods.bulletSpeed;
+  const velocity = forward.clone().multiplyScalar(speed);
+  velocity.y += wpn.throwArc || 8;
+  projectiles.push({
+    mesh,
+    velocity,
+    life: wpn.projectileLife,
+    kind: "puddle",
+    gravity: true,
+    bounceLeft: 1,
+    wpnStats: wpn,
+    trail: [],
+    trailTimer: 0,
+    hitIds: new Set(),
+    radius: 0.3,
+    damage: 0,
+  });
+}
+
+function fireTurretDeploy() {
+  const wpn = activeWeapon();
+  const forward = getAimForward();
+  const pos = getPlayerPos().clone();
+  pos.add(forward.clone().multiplyScalar(1.8));
+  pos.y = 0;
+  spawnTurret(pos, wpn);
+  playTone({ freq: 200, dur: 0.12, type: "square", gain: 0.04, slide: -60 });
+}
+
+function fireBoomerang(spreadYaw = 0, spreadPitch = 0) {
+  const wpn = activeWeapon();
+  const forward = getAimForward(spreadYaw, spreadPitch);
+  const mesh = createBoomerangProjectileMesh();
+  mesh.scale.setScalar(mods.bulletScale);
+  const spawnPos = getMuzzleSpawnPos(forward);
+  mesh.position.copy(spawnPos);
+  scene.add(mesh);
+  const speed = wpn.projectileSpeed * mods.bulletSpeed;
+  projectiles.push({
+    mesh,
+    velocity: forward.clone().multiplyScalar(speed),
+    life: wpn.projectileLife,
+    maxLife: wpn.projectileLife,
+    kind: "boomerang",
+    returnAt: wpn.returnAt || 0.45,
+    returned: false,
+    startPos: spawnPos.clone(),
+    trail: [],
+    trailTimer: 0,
+    hitIds: new Set(),
+    hitIdsReturn: new Set(),
+    radius: 0.35,
     damage: wpn.damage,
   });
 }
@@ -1334,7 +1655,7 @@ function shoot() {
   weaponRecoil = wpn.recoil || 1;
   muzzleFlash = 1;
   shakeAmp = Math.max(shakeAmp, wpn.shake || 0.04);
-  sfxShootFor(wpn.id);
+  sfxShootFor(getWeaponArchetype(wpn.id));
   crosshair.classList.remove("shoot");
   void crosshair.offsetWidth;
   crosshair.classList.add("shoot");
@@ -1342,62 +1663,58 @@ function shoot() {
   updateHud();
 
   const pType = wpn.projectileType || "bullet";
-  if (pType === "grenade") {
-    const yaw = (Math.random() - 0.5) * wpn.spread * mods.spreadMult;
-    const pitch = (Math.random() - 0.5) * wpn.spread * 0.5;
-    fireGrenade(yaw, pitch);
+  const yaw = (Math.random() - 0.5) * wpn.spread * mods.spreadMult;
+  const pitch = (Math.random() - 0.5) * wpn.spread * 0.5;
+  if (pType === "grenade") fireGrenade(yaw, pitch);
+  else if (pType === "rocket") fireRocket(yaw, pitch);
+  else if (pType === "mine") fireMine(yaw, pitch);
+  else if (pType === "melee") fireMelee();
+  else if (pType === "puddle") firePuddleBomb(yaw, pitch);
+  else if (pType === "turret") fireTurretDeploy();
+  else if (pType === "boomerang") fireBoomerang(yaw, pitch);
+  else {
+    const spreadBase = wpn.spread * mods.spreadMult;
+    const pellets = wpn.pellets || 1;
+    const extras = mods.extraProjectiles | 0;
+    for (let i = 0; i < pellets; i++) {
+      fireOneProjectile(
+        (Math.random() - 0.5) * spreadBase * 2,
+        (Math.random() - 0.5) * spreadBase,
+      );
+    }
+    for (let i = 0; i < extras; i++) {
+      fireOneProjectile(
+        (Math.random() - 0.5) * (0.12 + spreadBase * 4),
+        (Math.random() - 0.5) * 0.06,
+      );
+    }
+    if (Math.random() < mods.echoChance && getWeaponArchetype(wpn.id) === "rifle") {
+      setTimeout(() => {
+        if (!playing || rewarding || reloading || (!cheatInfiniteAmmo && state.mag <= 0)) return;
+        if (!cheatInfiniteAmmo) {
+          state.mag--;
+          syncMagFromState();
+        }
+        updateHud();
+        fireOneProjectile((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.02);
+        weaponRecoil = 0.7;
+        muzzleFlash = 0.8;
+        sfxShootFor("rifle");
+      }, 55);
+    }
     if (!cheatInfiniteAmmo && state.mag <= 0 && state.reserve > 0) {
       setTimeout(() => {
         if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
-      }, 220);
+      }, 180);
     }
     return;
   }
-  if (pType === "rocket") {
-    const yaw = (Math.random() - 0.5) * wpn.spread * mods.spreadMult;
-    const pitch = (Math.random() - 0.5) * wpn.spread * 0.5;
-    fireRocket(yaw, pitch);
-    if (!cheatInfiniteAmmo && state.mag <= 0 && state.reserve > 0) {
-      setTimeout(() => {
-        if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
-      }, 280);
-    }
-    return;
-  }
-
-  const spreadBase = wpn.spread * mods.spreadMult;
-  const pellets = wpn.pellets || 1;
-  const extras = mods.extraProjectiles | 0;
-  for (let i = 0; i < pellets; i++) {
-    const yaw = (Math.random() - 0.5) * spreadBase * 2;
-    const pitch = (Math.random() - 0.5) * spreadBase;
-    fireOneProjectile(yaw, pitch);
-  }
-  for (let i = 0; i < extras; i++) {
-    const yaw = (Math.random() - 0.5) * (0.12 + spreadBase * 4);
-    const pitch = (Math.random() - 0.5) * 0.06;
-    fireOneProjectile(yaw, pitch);
-  }
-  if (Math.random() < mods.echoChance && wpn.id === "rifle") {
-    setTimeout(() => {
-      if (!playing || rewarding || reloading || (!cheatInfiniteAmmo && state.mag <= 0)) return;
-      if (!cheatInfiniteAmmo) {
-        state.mag--;
-        syncMagFromState();
-      }
-      updateHud();
-      fireOneProjectile((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.02);
-      weaponRecoil = 0.7;
-      muzzleFlash = 0.8;
-      sfxShootFor("rifle");
-    }, 55);
-  }
-
   if (!cheatInfiniteAmmo && state.mag <= 0 && state.reserve > 0) {
     setTimeout(() => {
       if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
-    }, 180);
+    }, 240);
   }
+  return;
 }
 
 function updateWeaponSpin(dt) {
@@ -1410,8 +1727,8 @@ function updateWeaponSpin(dt) {
   const spinRate = gatlingSpin > 0.05 ? 18 + gatlingSpin * 40 : 0;
   const bg = heldGun?.userData?.barrelGroup;
   if (bg) bg.rotation.z += spinRate * dt;
-  const vbg = viewmodelGuns.gatling?.userData?.barrelGroup;
-  if (vbg && viewmodelGuns.gatling?.visible) vbg.rotation.z += spinRate * dt;
+  const vbg = viewmodelArchetypeGuns.gatling?.userData?.barrelGroup;
+  if (vbg && viewmodelArchetypeGuns.gatling?.visible) vbg.rotation.z += spinRate * dt;
 }
 
 function flashEnemyHit(enemy) {
@@ -1706,10 +2023,16 @@ function removeProjectile(proj) {
 
 function detonateProjectile(proj) {
   const wpnKind = proj.kind === "rocket" ? "rocket" : "grenade";
+  if (proj.kind === "puddle" && proj.wpnStats) {
+    spawnPuddle(proj.mesh.position, proj.wpnStats);
+    sfxExplosion("grenade");
+    shakeAmp = Math.max(shakeAmp, 0.04);
+    return;
+  }
   explodeAt(proj.mesh.position, {
-    radius: proj.splashRadius || 4,
-    splashDamage: proj.splashDamage || 2.5,
-    selfDamageScale: proj.selfDamageScale || 0.3,
+    radius: proj.splashRadius || proj.wpnStats?.splashRadius || 4,
+    splashDamage: proj.splashDamage || proj.wpnStats?.splashDamage || 2.5,
+    selfDamageScale: proj.selfDamageScale || proj.wpnStats?.selfDamageScale || 0.3,
     kind: wpnKind,
   });
 }
@@ -1771,6 +2094,34 @@ function updateProjectiles(dt) {
       }
     }
 
+    if (proj.kind === "mine" || proj.kind === "puddle") {
+      if (proj.mesh.position.y < 0.18 && proj.velocity.y <= 0) {
+        if (proj.kind === "mine") {
+          spawnMine(proj.mesh.position.clone(), proj.wpnStats);
+        } else {
+          spawnPuddle(proj.mesh.position, proj.wpnStats);
+          sfxExplosion("grenade");
+        }
+        removeProjectile(proj);
+        return false;
+      }
+    }
+
+    if (proj.kind === "boomerang") {
+      proj.age = (proj.age || 0) + dt;
+      const maxAge = proj.life + dt;
+      if (!proj.returned && proj.age > (proj.returnAt || 0.45) * (proj.maxLife || 2.2)) {
+        proj.returned = true;
+        const toPlayer = getPlayerPos().sub(proj.mesh.position);
+        toPlayer.y = 0;
+        if (toPlayer.lengthSq() > 0.01) {
+          proj.velocity.copy(toPlayer.normalize().multiplyScalar(proj.velocity.length() * 0.95));
+        }
+        proj.hitIds = proj.hitIdsReturn || new Set();
+      }
+      proj.mesh.rotation.y += dt * 12;
+    }
+
     // Wall bounce for bullets only
     if (!proj.kind || proj.kind === "bullet") {
       let bounced = false;
@@ -1795,7 +2146,7 @@ function updateProjectiles(dt) {
       if (proj.hitIds?.has(id)) continue;
       const hitR = (enemy.userData.hitRadius || 0.8) + (proj.radius || 0.22) - 0.12;
       if (proj.mesh.position.distanceTo(enemyCenter(enemy)) < hitR) {
-        if (proj.kind === "grenade" || proj.kind === "rocket") {
+        if (proj.kind === "grenade" || proj.kind === "rocket" || proj.kind === "puddle") {
           detonateProjectile(proj);
           removeProjectile(proj);
           return false;
@@ -1924,13 +2275,13 @@ function applyPowerUp(pu) {
     const already = ownedWeapons.has(id);
     if (already) {
       // Ammo top-up when re-rolling a weapon card
-      const add = id === "gatling" ? 18
-        : id === "shotgun" ? 8
-          : id === "grenade" ? 3
-            : id === "rocket" ? 4
-              : 12;
+      const w = WEAPONS[id];
+      const add = Math.max(3, Math.ceil((w?.magSize || 12) * 0.45));
       state.reserve = Math.min(MAX_RESERVE + 40, state.reserve + add);
-      weaponMags[id] = Math.min(magCapacity() + (id === activeWeaponId ? 0 : WEAPONS[id].magSize), (weaponMags[id] || 0) + Math.ceil(add / 3));
+      weaponMags[id] = Math.min(
+        (w?.magSize || 12) + Math.max(0, mods.magBonus | 0) + Math.ceil(add / 3),
+        (weaponMags[id] || 0) + Math.ceil(add / 3),
+      );
       showPickupToast(`${WEAPONS[id].name} AMMO +${add}`);
     }
     equipWeapon(id, { announce: !already, refill: !already });
@@ -2114,16 +2465,51 @@ function padMoveActive() {
   return Math.abs(axisDZ(pad.axes[0])) > 0 || Math.abs(axisDZ(pad.axes[1])) > 0;
 }
 
+function loadoutWeaponList() {
+  if (loadoutFilterArch === "all") return WEAPON_IDS;
+  return weaponsForArchetype(loadoutFilterArch);
+}
+
+function ownedWeaponList() {
+  return WEAPON_IDS.filter((id) => ownedWeapons.has(id));
+}
+
+function renderLoadoutTabs() {
+  if (!loadoutTabs) return;
+  loadoutTabs.innerHTML = "";
+  ["all", ...ARCHETYPES].forEach((arch) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `loadout-tab${loadoutFilterArch === arch ? " active" : ""}`;
+    btn.textContent = arch === "all" ? "ALL" : (ARCHETYPE_LABELS[arch] || arch);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      loadoutFilterArch = arch;
+      loadoutFocus.section = "gun";
+      loadoutFocus.index = 0;
+      const list = loadoutWeaponList();
+      if (list.length && !list.includes(loadout.startWeapon)) {
+        loadout.startWeapon = list[0];
+      }
+      renderLoadoutUI();
+      updateLoadoutSummary();
+    });
+    loadoutTabs.appendChild(btn);
+  });
+}
+
 function renderLoadoutUI() {
   if (!loadoutGuns || !loadoutExtras) return;
+  renderLoadoutTabs();
+  const list = loadoutWeaponList();
   loadoutGuns.innerHTML = "";
-  WEAPON_IDS.forEach((id, i) => {
+  list.forEach((id, i) => {
     const w = WEAPONS[id];
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `loadout-card${loadout.startWeapon === id ? " selected" : ""}`;
+    btn.className = `loadout-row${loadout.startWeapon === id ? " selected" : ""}`;
     btn.dataset.id = id;
-    btn.innerHTML = `<strong class="lc-name">${w.name}</strong><p class="lc-desc">${w.desc}</p>`;
+    btn.innerHTML = `<span class="lc-name">${w.name}</span><span class="lc-arch">${ARCHETYPE_LABELS[w.archetype] || w.archetype}</span>`;
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       loadout.startWeapon = id;
@@ -2132,6 +2518,9 @@ function renderLoadoutUI() {
       updateLoadoutSummary();
       sfxWeaponSwap();
     });
+    if (loadout.startWeapon === id) {
+      btn.scrollIntoView({ block: "nearest" });
+    }
     loadoutGuns.appendChild(btn);
   });
 
@@ -2349,9 +2738,10 @@ function confirmLoadout(startMatch = false) {
 function nudgeLoadout(dir) {
   if (!loadoutOpen) return;
   if (loadoutFocus.section === "gun") {
-    const i = (loadoutFocus.index + dir + WEAPON_IDS.length) % WEAPON_IDS.length;
+    const list = loadoutWeaponList();
+    const i = (loadoutFocus.index + dir + list.length) % list.length;
     loadoutFocus.index = i;
-    loadout.startWeapon = WEAPON_IDS[i];
+    loadout.startWeapon = list[i];
   } else {
     const i = (loadoutFocus.index + dir + LOADOUT_EXTRAS.length) % LOADOUT_EXTRAS.length;
     loadoutFocus.index = i;
@@ -2381,7 +2771,7 @@ function pollGamepad(dt) {
     if (padBtnEdge("loRight", padBtn(pad, 15) || axisDZ(pad.axes[0]) > 0.6)) nudgeLoadout(1);
     if (padBtnEdge("loUp", padBtn(pad, 12) || axisDZ(pad.axes[1]) < -0.6)) {
       loadoutFocus.section = "gun";
-      loadoutFocus.index = Math.max(0, WEAPON_IDS.indexOf(loadout.startWeapon));
+      loadoutFocus.index = Math.max(0, loadoutWeaponList().indexOf(loadout.startWeapon));
       renderLoadoutUI();
     }
     if (padBtnEdge("loDown", padBtn(pad, 13) || axisDZ(pad.axes[1]) > 0.6)) {
@@ -2474,7 +2864,7 @@ function animate() {
       updateFxBits(dt);
     } else if (pointerLocked) {
       const wpn = activeWeapon();
-      if (activeWeaponId === "grenade" && !reloading && (cheatInfiniteAmmo || state.mag > 0)) {
+      if (getWeaponArchetype(activeWeaponId) === "grenade" && !reloading && (cheatInfiniteAmmo || state.mag > 0)) {
         const primed = shootHeld || keys._mouseDown;
         if (primed) {
           grenadeHoldT = Math.min((wpn.fuseTime || 1.75) - 0.35, grenadeHoldT + dt);
@@ -2489,6 +2879,7 @@ function animate() {
       updateWeaponSpin(dt);
       updateViewmodel(dt);
       updateProjectiles(dt);
+      updateDeployables(dt);
       updateFxBits(dt);
       updateEnemies(dt, now / 1000);
       updateSpawns(dt);
@@ -2544,11 +2935,11 @@ window.addEventListener("keydown", (e) => {
 
   if (loadoutOpen) {
     if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); nudgeLoadout(-1); }
-    if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); nudgeLoadout(1); }
+    if (e.code === "ArrowRight") { e.preventDefault(); nudgeLoadout(1); }
     if (e.code === "ArrowUp" || e.code === "KeyW") {
       e.preventDefault();
       loadoutFocus.section = "gun";
-      loadoutFocus.index = Math.max(0, WEAPON_IDS.indexOf(loadout.startWeapon));
+      loadoutFocus.index = Math.max(0, loadoutWeaponList().indexOf(loadout.startWeapon));
       renderLoadoutUI();
     }
     if (e.code === "ArrowDown" || e.code === "KeyS") {
@@ -2584,11 +2975,9 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.code === "KeyR" && playing && pointerLocked) tryReload();
   if (e.code === "KeyQ" && playing) { e.preventDefault(); cycleOwnedWeapon(-1); }
-  if (e.code === "Digit1" && playing && ownedWeapons.has("rifle")) equipWeapon("rifle");
-  if (e.code === "Digit2" && playing && ownedWeapons.has("shotgun")) equipWeapon("shotgun");
-  if (e.code === "Digit3" && playing && ownedWeapons.has("gatling")) equipWeapon("gatling");
-  if (e.code === "Digit4" && playing && ownedWeapons.has("grenade")) equipWeapon("grenade");
-  if (e.code === "Digit5" && playing && ownedWeapons.has("rocket")) equipWeapon("rocket");
+  ownedWeaponList().slice(0, 9).forEach((id, i) => {
+    if (e.code === `Digit${i + 1}` && playing) equipWeapon(id);
+  });
   if (e.code === "KeyC" && playing) {
     e.preventDefault();
     cycleCameraMode();
@@ -2641,6 +3030,14 @@ startBtn.addEventListener("click", (e) => {
 loadoutBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   openLoadout();
+});
+loadoutRandom?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  loadout.startWeapon = randomWeaponId();
+  loadoutFocus = { section: "gun", index: Math.max(0, loadoutWeaponList().indexOf(loadout.startWeapon)) };
+  renderLoadoutUI();
+  updateLoadoutSummary();
+  sfxWeaponSwap();
 });
 devMenuBtn?.addEventListener("click", (e) => {
   e.stopPropagation();

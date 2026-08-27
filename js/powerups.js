@@ -1,211 +1,210 @@
 /**
- * Template-generated roguelite power-up pool (~100 entries).
- * Stacking is allowed; each pick applies one modifier delta.
+ * ~1000 power-up pool. Stacking allowed; 3-card offers after each wave.
  */
 
+import { WEAPON_IDS, WEAPONS } from "./weapons.js";
+
 const ADJECTIVES = [
-  'Spicy', 'Juicy', 'Nuclear', 'Sticky', 'Fermented', 'Chunky', 'Crispy',
-  'Volatile', 'Gunky', 'Putrid', 'Turbo', 'Soggy', 'Metallic', 'Acidic',
-  'Blessed', 'Cursed', 'Lucky', 'Rancid', 'Glazed', 'Feral',
+  "Spicy", "Juicy", "Nuclear", "Sticky", "Fermented", "Chunky", "Crispy",
+  "Volatile", "Gunky", "Putrid", "Turbo", "Soggy", "Metallic", "Acidic",
+  "Blessed", "Cursed", "Lucky", "Rancid", "Glazed", "Feral", "Brown",
+  "Toxic", "Greasy", "Fizzy", "Moldy", "Sizzling", "Dank", "Funky",
 ];
 
 const NOUNS = [
-  'Splat', 'Spray', 'Core', 'Pack', 'Boost', 'Charm', 'Gland', 'Canister',
-  'Serum', 'Capsule', 'Mote', 'Shard', 'Totem', 'Relic', 'Injection',
+  "Splat", "Spray", "Core", "Pack", "Boost", "Charm", "Gland", "Canister",
+  "Serum", "Capsule", "Mote", "Shard", "Totem", "Relic", "Injection",
+  "Glob", "Wad", "Clump", "Drip", "Puddle", "Blast", "Fuse", "Tube",
 ];
 
 function pick(list, i) {
   return list[i % list.length];
 }
 
-function makeName(adjI, nounI, suffix) {
-  return `${pick(ADJECTIVES, adjI)} ${pick(NOUNS, nounI)}${suffix ? ` ${suffix}` : ''}`;
+function makeName(adjI, nounI, suffix = "") {
+  const s = suffix ? ` ${suffix}` : "";
+  return `${pick(ADJECTIVES, adjI)} ${pick(NOUNS, nounI)}${s}`;
 }
 
-/**
- * @typedef {{ id: string, name: string, desc: string, rarity: string, apply: (m: object) => void }} PowerUp
- */
+/** @typedef {{ id: string, name: string, desc: string, rarity: string, apply: (m: object) => void }} PowerUp */
 
 /** @returns {PowerUp[]} */
 export function buildPowerUpPool() {
   /** @type {PowerUp[]} */
   const pool = [];
   let n = 0;
+  const seen = new Set();
 
   const push = (name, desc, rarity, apply, extra = {}) => {
-    pool.push({ id: `pu_${n++}`, name, desc, rarity, apply, ...extra });
+    const id = `pu_${n++}`;
+    if (seen.has(name)) return;
+    seen.add(name);
+    pool.push({ id, name, desc, rarity, apply, ...extra });
   };
 
-  // Weapon unlocks (appear in the 3-card offer; stacking = ammo top-up if owned)
-  push("Chunk Blaster", "Unlock shotgun — spread pellets, short range", "rare", () => {}, { grantWeapon: "shotgun" });
-  push("Turret Hose", "Unlock gatling — wind-up stream, ammo hungry", "rare", () => {}, { grantWeapon: "gatling" });
-  push("Stink Nade", "Unlock grenade — cook & throw, splash pop", "rare", () => {}, { grantWeapon: "grenade" });
-  push("U-Launch", "Unlock rocket launcher — slow boom, big splash", "rare", () => {}, { grantWeapon: "rocket" });
-  push("Pump Action Pack", "Shotgun kit (or +2 shells if owned)", "rare", (m) => { m.magBonus += 1; }, { grantWeapon: "shotgun" });
-  push("Belt Feed Bundle", "Gatling kit (or +12 belt if owned)", "rare", (m) => { m.magBonus += 2; }, { grantWeapon: "gatling" });
-  push("Pocket Pouch", "Grenade kit (or +2 nades if owned)", "rare", (m) => { m.magBonus += 1; }, { grantWeapon: "grenade" });
-  push("Tube Rack", "Rocket kit (or +2 rockets if owned)", "rare", (m) => { m.magBonus += 1; }, { grantWeapon: "rocket" });
-  push("Double Barrel Dream", "Unlock shotgun + chunkier pellets", "rare", (m) => { m.bulletScale *= 1.12; }, { grantWeapon: "shotgun" });
-  push("Spin-Up Spiral", "Unlock gatling + slight RoF", "rare", (m) => { m.fireRate *= 1.08; }, { grantWeapon: "gatling" });
-  push("Fuse Fumbler", "Unlock grenade + faster throw", "rare", (m) => { m.fireRate *= 1.06; }, { grantWeapon: "grenade" });
-  push("Boom Tube", "Unlock rocket + chunkier splash", "rare", (m) => { m.bulletScale *= 1.08; }, { grantWeapon: "rocket" });
-
-  // Damage
-  [0.08, 0.12, 0.16, 0.2, 0.25].forEach((v, i) => {
-    push(makeName(i, i, 'Damage'), `+${Math.round(v * 100)}% bullet damage`, i > 2 ? 'rare' : 'common', (m) => { m.damage *= 1 + v; });
-  });
-
-  // Fire rate (lower interval)
-  [0.08, 0.12, 0.16, 0.2, 0.28].forEach((v, i) => {
-    push(makeName(i + 3, i + 2, 'RoF'), `+${Math.round(v * 100)}% fire rate`, i > 2 ? 'rare' : 'common', (m) => { m.fireRate *= 1 + v; });
-  });
-
-  // Mag size
-  [1, 2, 3, 4, 5, 6].forEach((v, i) => {
-    push(makeName(i + 5, i + 1, 'Mag'), `+${v} magazine size`, v >= 4 ? 'rare' : 'common', (m) => { m.magBonus += v; });
-  });
-
-  // Reload speed
-  [0.1, 0.15, 0.2, 0.25, 0.35].forEach((v, i) => {
-    push(makeName(i + 7, i + 4, 'Reload'), `+${Math.round(v * 100)}% reload speed`, i > 2 ? 'rare' : 'common', (m) => { m.reloadSpeed *= 1 + v; });
-  });
-
-  // Move speed
-  [0.06, 0.1, 0.14, 0.18, 0.22].forEach((v, i) => {
-    push(makeName(i + 2, i + 6, 'Stride'), `+${Math.round(v * 100)}% move speed`, i > 2 ? 'rare' : 'common', (m) => { m.moveSpeed *= 1 + v; });
-  });
-
-  // Max HP
-  [10, 15, 20, 25, 35, 50].forEach((v, i) => {
-    push(makeName(i + 9, i + 3, 'Vitality'), `+${v} max HP (heal that amount)`, v >= 25 ? 'rare' : 'common', (m) => { m.maxHpBonus += v; });
-  });
-
-  // Lifesteal
-  [0.04, 0.07, 0.1, 0.14, 0.18].forEach((v, i) => {
-    push(makeName(i + 11, i + 8, 'Leech'), `${Math.round(v * 100)}% lifesteal on hit`, i > 2 ? 'rare' : 'common', (m) => { m.lifesteal += v; });
-  });
-
-  // Extra projectiles
-  [1, 1, 2].forEach((v, i) => {
-    push(makeName(i + 14, i + 10, 'Scatter'), `+${v} projectile per shot`, 'rare', (m) => { m.extraProjectiles += v; });
-  });
-
-  // Bounce
-  [1, 1, 2, 3].forEach((v, i) => {
-    push(makeName(i + 1, i + 12, 'Ricochet'), `Bullets bounce +${v}`, i > 1 ? 'rare' : 'common', (m) => { m.bounce += v; });
-  });
-
-  // Bigger bullets
-  [0.15, 0.25, 0.35, 0.5].forEach((v, i) => {
-    push(makeName(i + 4, i + 7, 'Caliber'), `+${Math.round(v * 100)}% bullet size`, i > 1 ? 'rare' : 'common', (m) => { m.bulletScale *= 1 + v; });
-  });
-
-  // Magnet ammo
-  [2.5, 4, 6, 8].forEach((v, i) => {
-    push(makeName(i + 6, i + 9, 'Magnet'), `Ammo magnet +${v.toFixed(0)}m`, i > 1 ? 'rare' : 'common', (m) => { m.magnetRange += v; });
-  });
-
-  // Pierce
-  [1, 1, 2].forEach((v, i) => {
-    push(makeName(i + 8, i + 11, 'Pierce'), `Pierce +${v} enemy`, 'rare', (m) => { m.pierce += v; });
-  });
-
-  // Crit
-  [0.05, 0.08, 0.12, 0.16].forEach((v, i) => {
-    push(makeName(i + 10, i + 5, 'Crit'), `+${Math.round(v * 100)}% crit chance`, i > 1 ? 'rare' : 'common', (m) => { m.critChance += v; });
-  });
-  [0.25, 0.4, 0.6].forEach((v, i) => {
-    push(makeName(i + 12, i + 13, 'Crit Dmg'), `+${Math.round(v * 100)}% crit damage`, 'rare', (m) => { m.critMult += v; });
-  });
-
-  // Spread control
-  [0.12, 0.2, 0.3].forEach((v, i) => {
-    push(makeName(i + 15, i + 0, 'Focus'), `-${Math.round(v * 100)}% bullet spread`, i > 0 ? 'rare' : 'common', (m) => { m.spreadMult *= 1 - v; });
-  });
-
-  // Pickup value
-  [0.25, 0.5, 0.75, 1].forEach((v, i) => {
-    push(makeName(i + 17, i + 14, 'Scavenger'), `+${Math.round(v * 100)}% ammo from pickups`, i > 1 ? 'rare' : 'common', (m) => { m.pickupMult *= 1 + v; });
-  });
-
-  // Heal on wave clear (flat)
-  [8, 15, 25].forEach((v, i) => {
-    push(makeName(i + 0, i + 15, 'Recovery'), `Heal ${v} HP now`, 'common', (m) => { m.instantHeal += v; });
-  });
-
-  // Bullet speed
-  [0.1, 0.18, 0.28].forEach((v, i) => {
-    push(makeName(i + 18, i + 2, 'Velocity'), `+${Math.round(v * 100)}% bullet speed`, 'common', (m) => { m.bulletSpeed *= 1 + v; });
-  });
-
-  // Armor / damage taken reduction
-  [0.05, 0.08, 0.12, 0.16].forEach((v, i) => {
-    push(makeName(i + 3, i + 4, 'Shell'), `-${Math.round(v * 100)}% damage taken`, i > 1 ? 'rare' : 'common', (m) => { m.damageTaken *= 1 - v; });
-  });
-
-  // Double tap (chance to fire twice)
-  [0.08, 0.12, 0.18].forEach((v, i) => {
-    push(makeName(i + 19, i + 6, 'Echo'), `${Math.round(v * 100)}% chance double shot`, 'rare', (m) => { m.echoChance += v; });
-  });
-
-  // Fill remaining to ~100 with mixed micro-boosts
-  const fillers = [
-    ['Gunk Coating', '+6% damage', 'common', (m) => { m.damage *= 1.06; }],
-    ['Quick Latch', '+7% fire rate', 'common', (m) => { m.fireRate *= 1.07; }],
-    ['Extra Clip Spring', '+1 mag size', 'common', (m) => { m.magBonus += 1; }],
-    ['Greased Bolt', '+8% reload', 'common', (m) => { m.reloadSpeed *= 1.08; }],
-    ['Light Boots', '+5% move', 'common', (m) => { m.moveSpeed *= 1.05; }],
-    ['Hardened Core', '+8 max HP', 'common', (m) => { m.maxHpBonus += 8; }],
-    ['Siphon Droplet', '+3% lifesteal', 'common', (m) => { m.lifesteal += 0.03; }],
-    ['Wide Bore', '+10% bullet size', 'common', (m) => { m.bulletScale *= 1.1; }],
-    ['Pull Field', 'Magnet +2m', 'common', (m) => { m.magnetRange += 2; }],
-    ['Needle Tip', '+4% crit', 'common', (m) => { m.critChance += 0.04; }],
-    ['Soft Recoil Pad', '-8% spread', 'common', (m) => { m.spreadMult *= 0.92; }],
-    ['Loot Sensor', '+20% pickup ammo', 'common', (m) => { m.pickupMult *= 1.2; }],
-    ['Hot Barrel', '+5% bullet speed', 'common', (m) => { m.bulletSpeed *= 1.05; }],
-    ['Rubber Shell', '-4% damage taken', 'common', (m) => { m.damageTaken *= 0.96; }],
-    ['Second Squeeze', '+5% echo shot', 'common', (m) => { m.echoChance += 0.05; }],
-    ['Bank Shot', 'Bounce +1', 'rare', (m) => { m.bounce += 1; }],
-    ['Twin Nozzle', '+1 projectile', 'rare', (m) => { m.extraProjectiles += 1; }],
-    ['Drill Bit', 'Pierce +1', 'rare', (m) => { m.pierce += 1; }],
-    ['Overcharge Cap', '+18% damage', 'rare', (m) => { m.damage *= 1.18; }],
-    ['Machine Spirit', '+15% fire rate', 'rare', (m) => { m.fireRate *= 1.15; }],
-    ['Deep Mag', '+4 mag size', 'rare', (m) => { m.magBonus += 4; }],
-    ['Snap Reload', '+20% reload', 'rare', (m) => { m.reloadSpeed *= 1.2; }],
-    ['Adrenal Rush', '+12% move', 'rare', (m) => { m.moveSpeed *= 1.12; }],
-    ['Iron Gut', '+30 max HP', 'rare', (m) => { m.maxHpBonus += 30; }],
-    ['Vampiric Mist', '+10% lifesteal', 'rare', (m) => { m.lifesteal += 0.1; }],
-    ['Mega Slug', '+40% bullet size', 'rare', (m) => { m.bulletScale *= 1.4; }],
-    ['Tractor Beam', 'Magnet +7m', 'rare', (m) => { m.magnetRange += 7; }],
-    ['Lucky Streak', '+12% crit', 'rare', (m) => { m.critChance += 0.12; }],
-    ['Brutal Finisher', '+50% crit damage', 'rare', (m) => { m.critMult += 0.5; }],
-    ['Laser Focus', '-25% spread', 'rare', (m) => { m.spreadMult *= 0.75; }],
-    ['Hoarder Instinct', '+80% pickup ammo', 'rare', (m) => { m.pickupMult *= 1.8; }],
-    ['Rail Boost', '+25% bullet speed', 'rare', (m) => { m.bulletSpeed *= 1.25; }],
-    ['Plated Hide', '-12% damage taken', 'rare', (m) => { m.damageTaken *= 0.88; }],
-    ['Afterimage', '+15% echo shot', 'rare', (m) => { m.echoChance += 0.15; }],
-    ['Field Med', 'Heal 20 HP now', 'common', (m) => { m.instantHeal += 20; }],
-  ];
-
-  fillers.forEach(([name, desc, rarity, apply]) => {
-    if (pool.length >= 100) return;
-    push(name, desc, rarity, apply);
-  });
-
-  // Top up if still short
-  let pad = 0;
-  while (pool.length < 100) {
-    const v = 0.04 + (pad % 5) * 0.01;
+  // Weapon unlock cards — sample across full weapon roster
+  WEAPON_IDS.forEach((wid, i) => {
+    const w = WEAPONS[wid];
+    if (!w) return;
     push(
-      makeName(pad, pad + 3, `Mod ${pad + 1}`),
-      `+${Math.round(v * 100)}% damage`,
-      'common',
-      (m) => { m.damage *= 1 + v; },
+      w.name,
+      `Unlock ${w.name} — ${w.desc?.slice(0, 48) || w.archetype}`,
+      "rare",
+      () => {},
+      { grantWeapon: wid },
     );
-    pad += 1;
+    if (i % 3 === 0) {
+      push(
+        `${w.short} Kit`,
+        `${w.name} kit (or ammo top-up if owned)`,
+        "rare",
+        (m) => { m.magBonus += 1; },
+        { grantWeapon: wid },
+      );
+    }
+  });
+
+  // Core stat loops
+  for (let i = 0; i < 80; i++) {
+    const v = 0.04 + (i % 20) * 0.008;
+    push(makeName(i, i, "Damage"), `+${Math.round(v * 100)}% damage`, i % 4 === 0 ? "rare" : "common", (m) => { m.damage *= 1 + v; });
+  }
+  for (let i = 0; i < 70; i++) {
+    const v = 0.04 + (i % 18) * 0.009;
+    push(makeName(i + 5, i + 2, "RoF"), `+${Math.round(v * 100)}% fire rate`, i % 5 === 0 ? "rare" : "common", (m) => { m.fireRate *= 1 + v; });
+  }
+  for (let i = 0; i < 60; i++) {
+    const v = 1 + (i % 6);
+    push(makeName(i + 10, i + 4, "Mag"), `+${v} magazine size`, v >= 4 ? "rare" : "common", (m) => { m.magBonus += v; });
+  }
+  for (let i = 0; i < 55; i++) {
+    const v = 0.06 + (i % 15) * 0.012;
+    push(makeName(i + 3, i + 6, "Reload"), `+${Math.round(v * 100)}% reload speed`, i % 4 === 0 ? "rare" : "common", (m) => { m.reloadSpeed *= 1 + v; });
+  }
+  for (let i = 0; i < 40; i++) {
+    const v = 0.02 + (i % 8) * 0.004;
+    push(makeName(i + 7, i + 8, "Stride"), `+${Math.round(v * 100)}% move speed`, "common", (m) => { m.moveSpeed *= 1 + v; });
+  }
+  for (let i = 0; i < 65; i++) {
+    const v = 6 + (i % 12) * 2;
+    push(makeName(i + 12, i + 3, "Vitality"), `+${v} max HP (heal now)`, v >= 20 ? "rare" : "common", (m) => { m.maxHpBonus += v; m.instantHeal += Math.round(v * 0.6); });
+  }
+  for (let i = 0; i < 45; i++) {
+    const v = 0.02 + (i % 10) * 0.012;
+    push(makeName(i + 14, i + 10, "Leech"), `${Math.round(v * 100)}% lifesteal`, i % 3 === 0 ? "rare" : "common", (m) => { m.lifesteal += v; });
+  }
+  for (let i = 0; i < 35; i++) {
+    const v = i % 3 === 0 ? 2 : 1;
+    push(makeName(i + 16, i + 11, "Scatter"), `+${v} projectile per shot`, "rare", (m) => { m.extraProjectiles += v; });
+  }
+  for (let i = 0; i < 40; i++) {
+    const v = 1 + (i % 3);
+    push(makeName(i + 1, i + 12, "Ricochet"), `Bullets bounce +${v}`, i % 3 === 0 ? "rare" : "common", (m) => { m.bounce += v; });
+  }
+  for (let i = 0; i < 50; i++) {
+    const v = 0.08 + (i % 12) * 0.025;
+    push(makeName(i + 4, i + 7, "Caliber"), `+${Math.round(v * 100)}% bullet size`, i % 4 === 0 ? "rare" : "common", (m) => { m.bulletScale *= 1 + v; });
+  }
+  for (let i = 0; i < 35; i++) {
+    const v = 1.5 + (i % 8) * 0.8;
+    push(makeName(i + 6, i + 9, "Magnet"), `Ammo magnet +${v.toFixed(0)}m`, i % 3 === 0 ? "rare" : "common", (m) => { m.magnetRange += v; });
+  }
+  for (let i = 0; i < 40; i++) {
+    const v = 1 + (i % 2);
+    push(makeName(i + 8, i + 11, "Pierce"), `Pierce +${v} enemy`, "rare", (m) => { m.pierce += v; });
+  }
+  for (let i = 0; i < 45; i++) {
+    const v = 0.03 + (i % 14) * 0.008;
+    push(makeName(i + 10, i + 5, "Crit"), `+${Math.round(v * 100)}% crit chance`, i % 4 === 0 ? "rare" : "common", (m) => { m.critChance += v; });
+  }
+  for (let i = 0; i < 30; i++) {
+    const v = 0.12 + (i % 10) * 0.06;
+    push(makeName(i + 12, i + 13, "Crit Dmg"), `+${Math.round(v * 100)}% crit damage`, "rare", (m) => { m.critMult += v; });
+  }
+  for (let i = 0; i < 40; i++) {
+    const v = 0.06 + (i % 12) * 0.018;
+    push(makeName(i + 15, i, "Focus"), `-${Math.round(v * 100)}% spread`, i % 3 === 0 ? "rare" : "common", (m) => { m.spreadMult *= 1 - v; });
+  }
+  for (let i = 0; i < 40; i++) {
+    const v = 0.12 + (i % 10) * 0.08;
+    push(makeName(i + 17, i + 14, "Scavenger"), `+${Math.round(v * 100)}% pickup ammo`, i % 4 === 0 ? "rare" : "common", (m) => { m.pickupMult *= 1 + v; });
+  }
+  for (let i = 0; i < 35; i++) {
+    const v = 4 + (i % 10) * 3;
+    push(makeName(i, i + 15, "Recovery"), `Heal ${v} HP now`, "common", (m) => { m.instantHeal += v; });
+  }
+  for (let i = 0; i < 45; i++) {
+    const v = 0.05 + (i % 14) * 0.015;
+    push(makeName(i + 18, i + 2, "Velocity"), `+${Math.round(v * 100)}% projectile speed`, "common", (m) => { m.bulletSpeed *= 1 + v; });
+  }
+  for (let i = 0; i < 40; i++) {
+    const v = 0.03 + (i % 12) * 0.007;
+    push(makeName(i + 3, i + 4, "Shell"), `-${Math.round(v * 100)}% damage taken`, i % 4 === 0 ? "rare" : "common", (m) => { m.damageTaken *= 1 - v; });
+  }
+  for (let i = 0; i < 35; i++) {
+    const v = 0.04 + (i % 10) * 0.012;
+    push(makeName(i + 19, i + 6, "Echo"), `${Math.round(v * 100)}% double shot`, "rare", (m) => { m.echoChance += v; });
   }
 
-  return pool.slice(0, 100);
+  // Splash / explosive themed
+  for (let i = 0; i < 50; i++) {
+    const v = 0.05 + (i % 12) * 0.015;
+    push(makeName(i + 2, i + 16, "Blast"), `+${Math.round(v * 100)}% splash radius`, i % 3 === 0 ? "rare" : "common", (m) => { m.splashMult = (m.splashMult || 1) * (1 + v); });
+  }
+  for (let i = 0; i < 40; i++) {
+    const v = 0.06 + (i % 10) * 0.014;
+    push(makeName(i + 6, i + 17, "Boom"), `+${Math.round(v * 100)}% splash damage`, "rare", (m) => { m.splashDamageMult = (m.splashDamageMult || 1) * (1 + v); });
+  }
+  for (let i = 0; i < 30; i++) {
+    const v = 0.04 + (i % 8) * 0.01;
+    push(makeName(i + 11, i + 18, "Fuse"), `-${Math.round(v * 100)}% nade fuse time`, "common", (m) => { m.fuseMult = (m.fuseMult || 1) * (1 - v); });
+  }
+  for (let i = 0; i < 30; i++) {
+    const v = 0.05 + (i % 9) * 0.012;
+    push(makeName(i + 13, i + 19, "Rocket"), `+${Math.round(v * 100)}% rocket speed`, "rare", (m) => { m.rocketSpeedMult = (m.rocketSpeedMult || 1) * (1 + v); });
+  }
+  for (let i = 0; i < 25; i++) {
+    const v = 0.08 + (i % 7) * 0.02;
+    push(makeName(i + 16, i + 20, "Puddle"), `+${Math.round(v * 100)}% puddle DoT`, "rare", (m) => { m.puddleMult = (m.puddleMult || 1) * (1 + v); });
+  }
+  for (let i = 0; i < 25; i++) {
+    const v = 0.1 + (i % 6) * 0.03;
+    push(makeName(i + 18, i + 21, "Turret"), `+${Math.round(v * 100)}% turret duration`, "rare", (m) => { m.turretMult = (m.turretMult || 1) * (1 + v); });
+  }
+
+  // Pad to exactly 1000 with mixed micro mods
+  let pad = 0;
+  while (pool.length < 1000) {
+    const kind = pad % 12;
+    const v = 0.03 + (pad % 17) * 0.004;
+    const name = makeName(pad + 20, pad + 7, `Mod${pad + 1}`);
+    if (kind === 0) push(name, `+${Math.round(v * 100)}% damage`, "common", (m) => { m.damage *= 1 + v; });
+    else if (kind === 1) push(name, `+${Math.round(v * 100)}% fire rate`, "common", (m) => { m.fireRate *= 1 + v; });
+    else if (kind === 2) push(name, `+1 mag`, "common", (m) => { m.magBonus += 1; });
+    else if (kind === 3) push(name, `+${Math.round(v * 100)}% reload`, "common", (m) => { m.reloadSpeed *= 1 + v; });
+    else if (kind === 4) push(name, `+${Math.round(v * 50)}% move`, "common", (m) => { m.moveSpeed *= 1 + v * 0.5; });
+    else if (kind === 5) push(name, `+${4 + pad % 8} HP`, "common", (m) => { m.maxHpBonus += 4 + pad % 8; });
+    else if (kind === 6) push(name, `+${Math.round(v * 100)}% splash`, "common", (m) => { m.splashMult = (m.splashMult || 1) * (1 + v); });
+    else if (kind === 7) push(name, `Bounce +1`, "rare", (m) => { m.bounce += 1; });
+    else if (kind === 8) push(name, `Pierce +1`, "rare", (m) => { m.pierce += 1; });
+    else if (kind === 9) push(name, `Heal ${6 + pad % 10}`, "common", (m) => { m.instantHeal += 6 + pad % 10; });
+    else if (kind === 10) push(name, `+${Math.round(v * 100)}% pickup`, "common", (m) => { m.pickupMult *= 1 + v; });
+    else push(name, `+${Math.round(v * 100)}% bullet speed`, "common", (m) => { m.bulletSpeed *= 1 + v; });
+    pad += 1;
+    if (pad > 500) break;
+  }
+
+  while (pool.length < 1000) {
+    const v = 0.02 + (pool.length % 25) * 0.003;
+    push(
+      makeName(pool.length, pool.length + 5, `Boost${pool.length}`),
+      `+${Math.round(v * 100)}% all splat damage`,
+      pool.length % 5 === 0 ? "rare" : "common",
+      (m) => { m.damage *= 1 + v; },
+    );
+  }
+
+  return pool.slice(0, 1000);
 }
 
 export function createDefaultMods() {
@@ -230,6 +229,12 @@ export function createDefaultMods() {
     damageTaken: 1,
     echoChance: 0,
     instantHeal: 0,
+    splashMult: 1,
+    splashDamageMult: 1,
+    fuseMult: 1,
+    rocketSpeedMult: 1,
+    puddleMult: 1,
+    turretMult: 1,
   };
 }
 

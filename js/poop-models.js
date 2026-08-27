@@ -583,6 +583,76 @@ export function createViewmodelRocket() {
   return vm;
 }
 
+/** Melee plunger */
+export function createHeldPlunger() {
+  const gun = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3214, roughness: 0.65 });
+  const rubber = createPoopMaterial(0xc45a28);
+
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.42, 8), wood);
+  handle.rotation.x = Math.PI / 2;
+  handle.position.set(0, 0.02, 0.12);
+  gun.add(handle);
+
+  const cup = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), rubber);
+  cup.scale.set(1, 0.45, 1);
+  cup.position.set(0, 0.02, -0.28);
+  cup.castShadow = true;
+  gun.add(cup);
+
+  const muzzle = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05, 6, 6),
+    new THREE.MeshBasicMaterial({ color: 0xff9944, transparent: true, opacity: 0, depthWrite: false })
+  );
+  muzzle.position.set(0, 0.02, -0.38);
+  gun.add(muzzle);
+
+  gun.userData.muzzle = muzzle;
+  gun.userData.weaponId = "plunger";
+  return gun;
+}
+
+export function createViewmodelPlunger() {
+  const vm = new THREE.Group();
+  const held = createHeldPlunger();
+  held.scale.setScalar(1.35);
+  held.rotation.set(0.12, 0.22, 0.06);
+  vm.add(held);
+  vm.position.set(0.36, -0.36, -0.48);
+  vm.rotation.set(0.1, 0.2, 0.05);
+  vm.userData.muzzle = held.userData.muzzle;
+  vm.userData.basePos = vm.position.clone();
+  vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
+  vm.userData.weaponId = "plunger";
+  return vm;
+}
+
+/** Flat boomerang disk */
+export function createBoomerangProjectileMesh() {
+  const group = new THREE.Group();
+  const mat = createPoopMaterial(0x7a5020);
+  const curve = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.06, 8, 16, Math.PI * 1.35), mat);
+  curve.rotation.x = Math.PI / 2;
+  curve.castShadow = true;
+  group.add(curve);
+  return group;
+}
+
+/** Small sticky mine */
+export function createMineProjectileMesh() {
+  const group = new THREE.Group();
+  const mat = createPoopMaterial(0x4a3820);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), mat);
+  core.scale.set(1.1, 0.55, 1.1);
+  core.castShadow = true;
+  group.add(core);
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 6), mat);
+  spike.rotation.x = Math.PI;
+  spike.position.y = -0.1;
+  group.add(spike);
+  return group;
+}
+
 /** Dark tactical rifle for game-over mockup viewmodel */
 export function createRifleViewmodel() {
   const vm = new THREE.Group();
