@@ -1064,13 +1064,16 @@ function updateViewmodel(dt) {
   muzzleFlash = Math.max(0, muzzleFlash - dt * 8);
 
   // Recoil kick on held world gun
-  if (heldGun && heldGun.visible) {
+  if (heldGun && heldGun.visible && !reloading) {
     heldGun.rotation.x = 0.05 - weaponRecoil * 0.35;
     heldGun.position.z = -0.35 + weaponRecoil * 0.08;
+    heldGun.position.y = 0.85;
     if (heldGun.userData.muzzle?.material) {
       heldGun.userData.muzzle.material.opacity = muzzleFlash * 0.95;
       heldGun.userData.muzzle.scale.setScalar(0.7 + muzzleFlash * 1.8);
     }
+  } else if (heldGun && heldGun.visible && reloading && heldGun.userData.muzzle?.material) {
+    heldGun.userData.muzzle.material.opacity = 0;
   }
 
   if (!activeViewmodel?.visible) return;
@@ -1694,4 +1697,23 @@ window.__poopFpsEmptyMag = () => {
 window.__poopFpsSpawnAmmo = () => {
   const p = getPlayerPos();
   spawnAmmoPickup(new THREE.Vector3(p.x + 1.5, 0, p.z + 1.2), AMMO_PICKUP_AMOUNT);
+};
+window.__poopFpsSafeDemo = () => {
+  if (!playing) {
+    ensureAudio();
+    startGame();
+  }
+  enemies.forEach((e) => scene.remove(e));
+  enemies = [];
+  state.enemiesToSpawn = 999;
+  state.enemiesSpawned = 999;
+  state.health = maxHealth();
+  state.reserve = Math.max(state.reserve, 60);
+  updateHud();
+};
+window.__poopFpsStartReload = () => {
+  state.mag = 0;
+  state.reserve = Math.max(state.reserve, 24);
+  tryReload();
+  updateHud();
 };
