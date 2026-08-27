@@ -418,6 +418,12 @@ export function createGrenadeProjectileMesh() {
   core.castShadow = true;
   group.add(core);
 
+  const gasGlow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.36, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0x88cc44, transparent: true, opacity: 0.28, depthWrite: false }),
+  );
+  group.add(gasGlow);
+
   const seam = new THREE.Mesh(
     new THREE.TorusGeometry(0.28, 0.04, 10, 20),
     createPoopMaterial(0x3d2208)
@@ -463,11 +469,17 @@ export function createRocketProjectileMesh() {
   group.add(finR);
 
   const exhaust = new THREE.Mesh(
-    new THREE.SphereGeometry(0.08, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xff8833, transparent: true, opacity: 0.55 })
+    new THREE.SphereGeometry(0.1, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff6622, transparent: true, opacity: 0.7 })
   );
-  exhaust.position.z = 0.28;
+  exhaust.position.z = 0.3;
   group.add(exhaust);
+  const smoke = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  smoke.position.z = 0.38;
+  group.add(smoke);
 
   group.rotation.x = Math.PI / 2;
   return group;
@@ -635,6 +647,12 @@ export function createBoomerangProjectileMesh() {
   curve.rotation.x = Math.PI / 2;
   curve.castShadow = true;
   group.add(curve);
+  const glow = new THREE.Mesh(
+    new THREE.TorusGeometry(0.24, 0.03, 6, 16, Math.PI * 1.35),
+    new THREE.MeshBasicMaterial({ color: 0xffee88, transparent: true, opacity: 0.55, depthWrite: false }),
+  );
+  glow.rotation.x = Math.PI / 2;
+  group.add(glow);
   return group;
 }
 
@@ -646,10 +664,17 @@ export function createMineProjectileMesh() {
   core.scale.set(1.1, 0.55, 1.1);
   core.castShadow = true;
   group.add(core);
+  const blink = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff2244, transparent: true, opacity: 0.85 }),
+  );
+  blink.position.y = 0.12;
+  group.add(blink);
   const spike = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 6), mat);
   spike.rotation.x = Math.PI;
   spike.position.y = -0.1;
   group.add(spike);
+  group.userData.blinkLight = blink;
   return group;
 }
 

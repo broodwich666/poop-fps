@@ -51,6 +51,23 @@ import {
   weaponLabel,
   weaponsForArchetype,
 } from "./weapons.js";
+import {
+  ARCHETYPE_ACCENTS,
+  clearVfx,
+  createArchetypeProjectileMesh,
+  initVfx,
+  spawnBoomerangSpark,
+  spawnExplosionVfx,
+  spawnImpactVfx,
+  spawnMineArmedVfx,
+  spawnMuzzleVfx,
+  spawnPlungerSmear,
+  spawnPuddleSpread,
+  spawnSniperBeam,
+  spawnTrailForArchetype,
+  spawnTurretDeployVfx,
+  updateVfx,
+} from "./vfx.js";
 
 const canvas = document.getElementById("game-canvas");
 const overlay = document.getElementById("overlay");
@@ -74,6 +91,7 @@ const finalKillsEl = document.getElementById("final-kills");
 const healthFill = document.getElementById("health-fill");
 const healthText = document.getElementById("health-text");
 const damageVignette = document.getElementById("damage-vignette");
+const bloomFlash = document.getElementById("bloom-flash");
 const hitMarker = document.getElementById("hit-marker");
 const waveToast = document.getElementById("wave-toast");
 const waveToastNum = document.getElementById("wave-toast-num");
@@ -371,54 +389,91 @@ const sfxWeaponSwap = () => playTone({ freq: 280, dur: 0.06, type: "triangle", g
 function sfxShootFor(archOrId) {
   const arch = WEAPONS[archOrId]?.archetype || archOrId;
   if (arch === "shotgun") {
-    playTone({ freq: 90, dur: 0.12, type: "sawtooth", gain: 0.07, slide: -70 });
-    playTone({ freq: 180, dur: 0.08, type: "square", gain: 0.04, slide: -120 });
-    playTone({ freq: 55, dur: 0.14, type: "triangle", gain: 0.05, slide: -20 });
+    playTone({ freq: 75, dur: 0.14, type: "sawtooth", gain: 0.075, slide: -90 });
+    playTone({ freq: 160, dur: 0.09, type: "square", gain: 0.045, slide: -140 });
+    playTone({ freq: 42, dur: 0.18, type: "triangle", gain: 0.055, slide: -30 });
+    playTone({ freq: 220, dur: 0.04, type: "sawtooth", gain: 0.02, slide: -80 });
     return;
   }
   if (arch === "gatling") {
-    playTone({ freq: 240, dur: 0.035, type: "square", gain: 0.03, slide: -80 });
-    playTone({ freq: 520, dur: 0.025, type: "triangle", gain: 0.018, slide: -160 });
+    playTone({ freq: 280 + Math.random() * 40, dur: 0.028, type: "square", gain: 0.028, slide: -100 });
+    playTone({ freq: 580, dur: 0.02, type: "triangle", gain: 0.016, slide: -180 });
     return;
   }
-  if (arch === "grenade" || arch === "mine" || arch === "puddle") {
-    playTone({ freq: 180, dur: 0.09, type: "triangle", gain: 0.05, slide: 60 });
-    playTone({ freq: 95, dur: 0.12, type: "sawtooth", gain: 0.04, slide: -30 });
+  if (arch === "grenade") {
+    playTone({ freq: 220, dur: 0.07, type: "triangle", gain: 0.045, slide: 120 });
+    playTone({ freq: 140, dur: 0.11, type: "sawtooth", gain: 0.038, slide: -50 });
+    playTone({ freq: 80, dur: 0.08, type: "sine", gain: 0.03, slide: 40 });
     return;
   }
-  if (arch === "rocket" || arch === "turret") {
-    playTone({ freq: 120, dur: 0.14, type: "sawtooth", gain: 0.06, slide: 80 });
-    playTone({ freq: 60, dur: 0.18, type: "triangle", gain: 0.05, slide: -20 });
-    playTone({ freq: 280, dur: 0.08, type: "square", gain: 0.03, slide: -120 });
+  if (arch === "mine") {
+    playTone({ freq: 160, dur: 0.06, type: "square", gain: 0.04, slide: -60 });
+    playTone({ freq: 320, dur: 0.05, type: "triangle", gain: 0.025, slide: 80 });
+    playTone({ freq: 90, dur: 0.1, type: "sawtooth", gain: 0.035 });
+    return;
+  }
+  if (arch === "puddle") {
+    playTone({ freq: 130, dur: 0.1, type: "triangle", gain: 0.04, slide: -40 });
+    playTone({ freq: 70, dur: 0.14, type: "sine", gain: 0.045, slide: 20 });
+    playTone({ freq: 200, dur: 0.06, type: "square", gain: 0.02, slide: -80 });
+    return;
+  }
+  if (arch === "rocket") {
+    playTone({ freq: 95, dur: 0.16, type: "sawtooth", gain: 0.065, slide: 100 });
+    playTone({ freq: 48, dur: 0.22, type: "triangle", gain: 0.055, slide: -30 });
+    playTone({ freq: 320, dur: 0.1, type: "square", gain: 0.03, slide: -150 });
+    playTone({ freq: 180, dur: 0.25, type: "sine", gain: 0.02, slide: 60 });
+    return;
+  }
+  if (arch === "turret") {
+    playTone({ freq: 180, dur: 0.1, type: "square", gain: 0.04, slide: -80 });
+    playTone({ freq: 420, dur: 0.08, type: "triangle", gain: 0.03, slide: 60 });
+    playTone({ freq: 90, dur: 0.14, type: "sawtooth", gain: 0.035, slide: -20 });
     return;
   }
   if (arch === "plunger") {
-    playTone({ freq: 75, dur: 0.08, type: "square", gain: 0.06, slide: -25 });
+    playTone({ freq: 65, dur: 0.1, type: "square", gain: 0.07, slide: -35 });
+    playTone({ freq: 120, dur: 0.06, type: "triangle", gain: 0.04, slide: 50 });
+    playTone({ freq: 40, dur: 0.12, type: "sawtooth", gain: 0.05 });
     return;
   }
   if (arch === "boomerang") {
-    playTone({ freq: 320, dur: 0.06, type: "triangle", gain: 0.04, slide: 80 });
+    playTone({ freq: 380, dur: 0.05, type: "triangle", gain: 0.04, slide: 120 });
+    playTone({ freq: 520, dur: 0.07, type: "sine", gain: 0.03, slide: -60 });
     return;
   }
   if (arch === "sniper") {
-    playTone({ freq: 220, dur: 0.1, type: "triangle", gain: 0.055, slide: -120 });
-    playTone({ freq: 80, dur: 0.14, type: "sawtooth", gain: 0.04, slide: -30 });
+    playTone({ freq: 280, dur: 0.12, type: "triangle", gain: 0.06, slide: -180 });
+    playTone({ freq: 65, dur: 0.2, type: "sawtooth", gain: 0.05, slide: -40 });
+    playTone({ freq: 1200, dur: 0.03, type: "square", gain: 0.015, slide: -400 });
     return;
   }
-  playTone({ freq: 160, dur: 0.07, type: "triangle", gain: 0.06, slide: -90 });
-  playTone({ freq: 420, dur: 0.04, type: "square", gain: 0.025, slide: -200 });
+  playTone({ freq: 170, dur: 0.07, type: "triangle", gain: 0.06, slide: -100 });
+  playTone({ freq: 440, dur: 0.04, type: "square", gain: 0.025, slide: -220 });
 }
 
 function sfxExplosion(kind = "grenade") {
   if (kind === "rocket") {
-    playTone({ freq: 70, dur: 0.22, type: "sawtooth", gain: 0.08, slide: -50 });
-    playTone({ freq: 140, dur: 0.16, type: "square", gain: 0.05, slide: -90 });
-    playTone({ freq: 40, dur: 0.28, type: "triangle", gain: 0.06, slide: -15 });
+    playTone({ freq: 55, dur: 0.28, type: "sawtooth", gain: 0.09, slide: -60 });
+    playTone({ freq: 120, dur: 0.2, type: "square", gain: 0.055, slide: -110 });
+    playTone({ freq: 32, dur: 0.35, type: "triangle", gain: 0.07, slide: -20 });
+    playTone({ freq: 200, dur: 0.15, type: "sine", gain: 0.03, slide: -80 });
     return;
   }
-  playTone({ freq: 110, dur: 0.14, type: "sawtooth", gain: 0.065, slide: -40 });
-  playTone({ freq: 220, dur: 0.1, type: "triangle", gain: 0.045, slide: -80 });
-  playTone({ freq: 55, dur: 0.16, type: "square", gain: 0.04, slide: 20 });
+  if (kind === "mine") {
+    playTone({ freq: 90, dur: 0.12, type: "square", gain: 0.07, slide: -70 });
+    playTone({ freq: 180, dur: 0.1, type: "sawtooth", gain: 0.05, slide: 40 });
+    playTone({ freq: 45, dur: 0.2, type: "triangle", gain: 0.06 });
+    return;
+  }
+  if (kind === "puddle") {
+    playTone({ freq: 100, dur: 0.14, type: "triangle", gain: 0.045, slide: -30 });
+    playTone({ freq: 60, dur: 0.18, type: "sine", gain: 0.05, slide: 10 });
+    return;
+  }
+  playTone({ freq: 100, dur: 0.16, type: "sawtooth", gain: 0.07, slide: -50 });
+  playTone({ freq: 200, dur: 0.12, type: "triangle", gain: 0.05, slide: -90 });
+  playTone({ freq: 48, dur: 0.2, type: "square", gain: 0.045, slide: 25 });
 }
 
 function activeWeapon() {
@@ -781,6 +836,7 @@ function initScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   configureMockupRenderer(renderer);
+  initVfx(scene, bloomFlash);
 
   // Player avatar + held guns in world space
   playerRoot = new THREE.Group();
@@ -888,7 +944,7 @@ function onMouseLook(e) {
 function clearCombat() {
   projectiles.forEach((p) => {
     scene.remove(p.mesh);
-    p.trail.forEach((t) => scene.remove(t.mesh));
+    p.trail?.forEach((t) => scene.remove(t.mesh));
   });
   fxBits.forEach((b) => scene.remove(b.mesh));
   enemies.forEach((e) => scene.remove(e));
@@ -900,6 +956,7 @@ function clearCombat() {
   deployables = [];
   projectiles = [];
   fxBits = [];
+  clearVfx();
   enemies = [];
   ammoPickups = [];
   splats = splats.filter((s) => s.userData.permanent);
@@ -1241,26 +1298,11 @@ function explodeAt(pos, { radius = 4, splashDamage = 3, selfDamageScale = 0.3, k
   const blastPos = pos.clone();
   blastPos.y = Math.max(0.12, blastPos.y);
   createSplat(blastPos);
-  for (let i = 0; i < (kind === "rocket" ? 10 : 7); i++) {
-    const bit = createTrailParticle();
-    bit.position.copy(blastPos);
-    bit.position.x += (Math.random() - 0.5) * radius * 0.5;
-    bit.position.y += Math.random() * radius * 0.35;
-    bit.position.z += (Math.random() - 0.5) * radius * 0.5;
-    bit.scale.setScalar(kind === "rocket" ? 1.8 : 1.4);
-    scene.add(bit);
-    fxBits.push({
-      mesh: bit,
-      velocity: new THREE.Vector3(
-        (Math.random() - 0.5) * (kind === "rocket" ? 9 : 6),
-        2.5 + Math.random() * (kind === "rocket" ? 5 : 3.5),
-        (Math.random() - 0.5) * (kind === "rocket" ? 9 : 6),
-      ),
-      life: 0.45 + Math.random() * 0.25,
-    });
-  }
-  shakeAmp = Math.max(shakeAmp, kind === "rocket" ? 0.12 : 0.075);
-  sfxExplosion(kind);
+  const vfxKind = kind === "rocket" ? "rocket" : kind === "mine" ? "mine" : "grenade";
+  spawnExplosionVfx(vfxKind, blastPos, splashR, {
+    shakeCallback: (amt) => { shakeAmp = Math.max(shakeAmp, amt); },
+  });
+  sfxExplosion(vfxKind);
 
   const playerPos = getPlayerPos();
   const playerDist = Math.hypot(playerPos.x - blastPos.x, playerPos.z - blastPos.z);
@@ -1286,6 +1328,8 @@ function spawnPuddle(pos, wpn) {
   const mesh = createMockupSplat(pos);
   mesh.scale.setScalar(radius * 0.35);
   scene.add(mesh);
+  spawnPuddleSpread(pos, radius, wpn.color || 0x3a8a30);
+  sfxExplosion("puddle");
   deployables.push({
     type: "puddle",
     mesh,
@@ -1303,6 +1347,7 @@ function spawnTurret(pos, wpn) {
   group.position.copy(pos);
   group.position.y = 0.2;
   scene.add(group);
+  spawnTurretDeployVfx(pos);
   deployables.push({
     type: "turret",
     mesh: group,
@@ -1326,6 +1371,7 @@ function spawnMine(pos, wpn) {
     position: pos.clone(),
     armed: false,
     armTimer: wpn.armTime || 0.5,
+    blinkTimer: 0,
     triggerRadius: (wpn.triggerRadius || 2) * (mods.splashMult || 1),
     splashRadius: wpn.splashRadius,
     splashDamage: wpn.splashDamage,
@@ -1338,8 +1384,21 @@ function updateDeployables(dt) {
     if (d.type === "mine") {
       if (!d.armed) {
         d.armTimer -= dt;
-        if (d.armTimer <= 0) d.armed = true;
+        if (d.armTimer <= 0) {
+          d.armed = true;
+          spawnMineArmedVfx(d.position);
+        }
       } else {
+        d.blinkTimer = (d.blinkTimer || 0) + dt;
+        if (d.mesh) {
+          const pulse = 0.5 + Math.sin(d.blinkTimer * 14) * 0.5;
+          d.mesh.scale.setScalar(1 + pulse * 0.12);
+          const blink = d.mesh.userData?.blinkLight;
+          if (blink?.material) blink.material.opacity = 0.35 + pulse * 0.65;
+          if (Math.floor(d.blinkTimer * 6) % 2 === 0 && d.blinkTimer % 0.35 < dt) {
+            spawnTrailForArchetype("mine", d.position.clone().add(new THREE.Vector3(0, 0.15, 0)));
+          }
+        }
         for (const enemy of enemies) {
           const dist = enemyCenter(enemy).distanceTo(d.position);
           if (dist < d.triggerRadius) {
@@ -1347,7 +1406,7 @@ function updateDeployables(dt) {
               radius: d.splashRadius,
               splashDamage: d.splashDamage,
               selfDamageScale: d.selfDamageScale,
-              kind: "grenade",
+              kind: "mine",
             });
             scene.remove(d.mesh);
             return false;
@@ -1510,6 +1569,7 @@ function fireMine(spreadYaw = 0, spreadPitch = 0) {
 function fireMelee() {
   const wpn = activeWeapon();
   const range = wpn.meleeRange || 2.5;
+  const forward = getAimForward();
   const playerPos = getPlayerPos();
   let hits = 0;
   enemies.forEach((enemy) => {
@@ -1526,8 +1586,11 @@ function fireMelee() {
       hits++;
     }
   });
+  const smearPos = playerPos.clone().add(forward.clone().multiplyScalar(1.2));
+  smearPos.y = 0.35;
+  spawnPlungerSmear(smearPos, forward);
   playTone({ freq: 90, dur: 0.1, type: "sawtooth", gain: 0.07, slide: -40 });
-  if (hits) shakeAmp = Math.max(shakeAmp, 0.05);
+  if (hits) shakeAmp = Math.max(shakeAmp, 0.07);
 }
 
 function firePuddleBomb(spreadYaw = 0, spreadPitch = 0) {
@@ -1596,13 +1659,14 @@ function fireBoomerang(spreadYaw = 0, spreadPitch = 0) {
 
 function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
   const wpn = activeWeapon();
-  const mesh = createProjectileMesh();
+  const arch = getWeaponArchetype(activeWeaponId);
   const scale = mods.bulletScale * (opts.bulletScale || wpn.bulletScale || 1);
-  mesh.scale.setScalar(scale);
+  const mesh = createArchetypeProjectileMesh(arch, wpn.color, scale);
 
   const forward = getAimForward(spreadYaw, spreadPitch);
   const spawnPos = getMuzzleSpawnPos(forward);
   mesh.position.copy(spawnPos);
+  mesh.lookAt(spawnPos.clone().add(forward));
   scene.add(mesh);
   const speed = (opts.speed || wpn.projectileSpeed) * mods.bulletSpeed;
   const life = opts.life || wpn.projectileLife;
@@ -1611,6 +1675,7 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
     velocity: forward.multiplyScalar(speed),
     life,
     kind: "bullet",
+    arch,
     trail: [],
     trailTimer: 0,
     bounceLeft: mods.bounce | 0,
@@ -1619,6 +1684,10 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
     radius: 0.22 * scale,
     damage: (opts.damage || wpn.damage || 1),
   });
+  if (arch === "sniper") {
+    const end = spawnPos.clone().add(forward.clone().multiplyScalar(40));
+    spawnSniperBeam(spawnPos, end, wpn.color || 0x44ccff);
+  }
 }
 
 function shoot() {
@@ -1655,7 +1724,10 @@ function shoot() {
   weaponRecoil = wpn.recoil || 1;
   muzzleFlash = 1;
   shakeAmp = Math.max(shakeAmp, wpn.shake || 0.04);
-  sfxShootFor(getWeaponArchetype(wpn.id));
+  const shootArch = getWeaponArchetype(activeWeaponId);
+  sfxShootFor(shootArch);
+  const muzzleFwd = getAimForward();
+  spawnMuzzleVfx(shootArch, getMuzzleSpawnPos(muzzleFwd), muzzleFwd, wpn.color);
   crosshair.classList.remove("shoot");
   void crosshair.offsetWidth;
   crosshair.classList.add("shoot");
@@ -2006,34 +2078,30 @@ function updatePlayer(dt) {
 }
 
 function addTrailParticle(proj) {
-  const particle = createTrailParticle();
-  particle.position.copy(proj.mesh.position);
-  scene.add(particle);
-  proj.trail.push({ mesh: particle, life: 0.35 });
-  if (proj.trail.length > MAX_TRAIL_PARTS) {
-    const old = proj.trail.shift();
-    scene.remove(old.mesh);
-  }
+  const kindToArch = {
+    grenade: "grenade", rocket: "rocket", mine: "mine",
+    puddle: "puddle", boomerang: "boomerang", bullet: proj.arch || "rifle",
+  };
+  const arch = kindToArch[proj.kind] || proj.arch || "rifle";
+  spawnTrailForArchetype(arch, proj.mesh.position);
 }
 
 function removeProjectile(proj) {
   scene.remove(proj.mesh);
-  proj.trail.forEach((t) => scene.remove(t.mesh));
 }
 
 function detonateProjectile(proj) {
-  const wpnKind = proj.kind === "rocket" ? "rocket" : "grenade";
   if (proj.kind === "puddle" && proj.wpnStats) {
     spawnPuddle(proj.mesh.position, proj.wpnStats);
-    sfxExplosion("grenade");
     shakeAmp = Math.max(shakeAmp, 0.04);
     return;
   }
+  const kind = proj.kind === "rocket" ? "rocket" : proj.kind === "mine" ? "mine" : "grenade";
   explodeAt(proj.mesh.position, {
     radius: proj.splashRadius || proj.wpnStats?.splashRadius || 4,
     splashDamage: proj.splashDamage || proj.wpnStats?.splashDamage || 2.5,
     selfDamageScale: proj.selfDamageScale || proj.wpnStats?.selfDamageScale || 0.3,
-    kind: wpnKind,
+    kind,
   });
 }
 
@@ -2057,18 +2125,16 @@ function updateProjectiles(dt) {
     proj.trailTimer -= dt;
     if (proj.trailTimer <= 0) {
       addTrailParticle(proj);
-      proj.trailTimer = proj.kind === "rocket" ? 0.035 : 0.04;
+      const trailRate = {
+        rocket: 0.028, grenade: 0.045, mine: 0.06, puddle: 0.05,
+        boomerang: 0.04, bullet: 0.055,
+      };
+      proj.trailTimer = trailRate[proj.kind] || 0.04;
     }
-    proj.trail = proj.trail.filter((t) => {
-      t.life -= dt;
-      t.mesh.material.opacity = Math.max(0, (t.life / 0.35) * 0.65);
-      t.mesh.scale.multiplyScalar(1 - dt * 1.5);
-      if (t.life <= 0) {
-        scene.remove(t.mesh);
-        return false;
-      }
-      return true;
-    });
+
+    if (proj.kind === "boomerang" && Math.random() < dt * 8) {
+      spawnBoomerangSpark(proj.mesh.position);
+    }
 
     // Grenade ground bounce + fuse
     if (proj.kind === "grenade") {
@@ -2100,7 +2166,6 @@ function updateProjectiles(dt) {
           spawnMine(proj.mesh.position.clone(), proj.wpnStats);
         } else {
           spawnPuddle(proj.mesh.position, proj.wpnStats);
-          sfxExplosion("grenade");
         }
         removeProjectile(proj);
         return false;
@@ -2152,6 +2217,7 @@ function updateProjectiles(dt) {
           return false;
         }
         damageEnemy(enemy, proj.mesh.position.clone(), proj.damage || 1);
+        spawnImpactVfx(proj.arch || (proj.kind === "bullet" ? "rifle" : proj.kind), proj.mesh.position);
         proj.hitIds?.add(id);
         if (proj.pierceLeft > 0) {
           proj.pierceLeft--;
@@ -2295,12 +2361,23 @@ function renderRewardCards() {
   rewardCards.innerHTML = "";
   rewardOffer.forEach((pu, i) => {
     const btn = document.createElement("button");
+    const arch = pu.grantWeapon ? WEAPONS[pu.grantWeapon]?.archetype : null;
+    const classes = ["reward-card", pu.rarity === "rare" ? "rare" : "common"];
+    if (arch) classes.push(`grant-${arch}`);
+    if (pu._taken) classes.push("taken");
     btn.type = "button";
-    btn.className = `reward-card${pu.rarity === "rare" ? " rare" : ""}${pu._taken ? " taken" : ""}`;
+    btn.className = classes.join(" ");
     btn.dataset.index = String(i);
+    const accent = arch ? ARCHETYPE_ACCENTS[arch] : null;
+    if (accent) {
+      btn.style.setProperty("--arch-color", accent.css);
+      btn.style.setProperty("--arch-glow", accent.glow);
+    }
+    const icon = arch ? `<span class="rc-icon" aria-hidden="true"></span>` : "";
     btn.innerHTML = `
-      <span class="rc-rarity">${pu.rarity === "rare" ? "RARE" : "COMMON"}</span>
+      <span class="rc-rarity">${pu.rarity === "rare" ? "★ RARE" : "COMMON"}</span>
       <span class="rc-check">✓</span>
+      ${icon}
       <strong class="rc-name">${pu.name}</strong>
       <p class="rc-desc">${pu.desc}</p>
     `;
@@ -2482,6 +2559,9 @@ function renderLoadoutTabs() {
     btn.type = "button";
     btn.className = `loadout-tab${loadoutFilterArch === arch ? " active" : ""}`;
     btn.textContent = arch === "all" ? "ALL" : (ARCHETYPE_LABELS[arch] || arch);
+    if (arch !== "all" && ARCHETYPE_ACCENTS[arch]) {
+      btn.style.setProperty("--arch-color", ARCHETYPE_ACCENTS[arch].css);
+    }
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       loadoutFilterArch = arch;
@@ -2507,9 +2587,12 @@ function renderLoadoutUI() {
     const w = WEAPONS[id];
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = `loadout-row${loadout.startWeapon === id ? " selected" : ""}`;
+    btn.className = `loadout-row arch-${w.archetype}${loadout.startWeapon === id ? " selected" : ""}`;
+    const accent = ARCHETYPE_ACCENTS[w.archetype] || ARCHETYPE_ACCENTS.rifle;
     btn.dataset.id = id;
-    btn.innerHTML = `<span class="lc-name">${w.name}</span><span class="lc-arch">${ARCHETYPE_LABELS[w.archetype] || w.archetype}</span>`;
+    btn.style.setProperty("--arch-color", accent.css);
+    btn.style.setProperty("--arch-glow", accent.glow);
+    btn.innerHTML = `<span class="lc-swatch" aria-hidden="true"></span><span class="lc-name">${w.name}</span><span class="lc-arch">${ARCHETYPE_LABELS[w.archetype] || w.archetype}</span>`;
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       loadout.startWeapon = id;
@@ -2851,6 +2934,7 @@ function animate() {
 
   pollGamepad(dt);
   updateAdsZoom();
+  updateVfx(dt);
 
   if (playing && mode === "play") {
     if (gamePaused) {
