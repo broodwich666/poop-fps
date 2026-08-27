@@ -300,13 +300,21 @@ function fireInterval() {
   return FIRE_RATE / Math.max(0.35, mods.fireRate);
 }
 
-function showPickupToast(text) {
+function showPickupToast(text, sticky = false) {
   if (!pickupToast) return;
   pickupToast.textContent = text;
   pickupToast.classList.remove("hidden", "show");
+  pickupToast.style.animation = "";
+  pickupToast.style.opacity = "";
   void pickupToast.offsetWidth;
   pickupToast.classList.add("show");
   clearTimeout(showPickupToast._t);
+  if (sticky) {
+    pickupToast.style.animation = "none";
+    pickupToast.style.opacity = "1";
+    pickupToast.style.transform = "translateX(-50%) translateY(0)";
+    return;
+  }
   showPickupToast._t = setTimeout(() => {
     pickupToast.classList.remove("show");
     pickupToast.classList.add("hidden");
@@ -1732,4 +1740,7 @@ window.__poopFpsPickupToast = () => {
   } else {
     showPickupToast("RESERVE FULL");
   }
+};
+window.__poopFpsStickyAmmoToast = () => {
+  showPickupToast("+18 AMMO", true);
 };
