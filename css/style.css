@@ -243,6 +243,8 @@ body.is-playing {
 
 #start-btn,
 #restart-btn,
+#loadout-confirm,
+#loadout-start,
 .btn-secondary {
   font-family: "Nunito", sans-serif;
   font-weight: 900;
@@ -301,6 +303,8 @@ body.is-playing {
 
 #start-btn:hover,
 #restart-btn:hover,
+#loadout-confirm:hover,
+#loadout-start:hover,
 .btn-secondary:hover {
   transform: scale(1.04);
   filter: brightness(1.08);
@@ -308,8 +312,198 @@ body.is-playing {
 
 #start-btn:active,
 #restart-btn:active,
+#loadout-confirm:active,
+#loadout-start:active,
 .btn-secondary:active {
   transform: scale(0.98);
+}
+
+.menu-secondary {
+  width: 100%;
+  margin-top: 0.65rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  color: #f0d7b0;
+  background: rgba(20, 12, 6, 0.72);
+  border: 2px solid #8b5a2b;
+  border-radius: 12px;
+  box-shadow: 0 3px 0 #3a1804;
+}
+
+.loadout-summary {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #dcc39a;
+  letter-spacing: 0.03em;
+  opacity: 0.92;
+}
+
+#loadout {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(70, 42, 16, 0.55), rgba(8, 5, 3, 0.88) 72%);
+  pointer-events: auto;
+}
+
+#loadout.hidden {
+  display: none;
+}
+
+.loadout-panel {
+  width: min(960px, 94vw);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  padding: 1.25rem 1.4rem 1.15rem;
+  background: linear-gradient(180deg, rgba(42, 28, 14, 0.97), rgba(18, 12, 7, 0.98));
+  border: 3px solid #8b5a2b;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+#loadout-title {
+  margin: 0;
+  font-family: "Luckiest Guy", "Bungee", cursive;
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+  color: #ffe066;
+  letter-spacing: 0.05em;
+  text-shadow: 0 3px 0 #5a3208;
+}
+
+.loadout-sub {
+  margin: 0.3rem 0 0.9rem;
+  color: #e8c48a;
+  font-weight: 800;
+}
+
+.loadout-section-label {
+  margin: 0.75rem 0 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: #ffb020;
+  text-align: left;
+}
+
+.loadout-section-label span {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #b8966a;
+  text-transform: none;
+}
+
+.loadout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.loadout-extras {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 780px) {
+  .loadout-grid,
+  .loadout-extras {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loadout-card {
+  text-align: left;
+  padding: 0.85rem 0.8rem 0.95rem;
+  border: 2px solid #a67c52;
+  border-radius: 12px;
+  background: linear-gradient(165deg, #3a2818, #22160c);
+  color: #f5e6c8;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.loadout-card:hover,
+.loadout-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: #ffe066;
+  outline: none;
+}
+
+.loadout-card.selected {
+  border-color: #ff8a1a;
+  box-shadow: 0 0 0 2px rgba(255, 140, 30, 0.35), 0 8px 18px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(165deg, #4a2a12, #2a160a);
+}
+
+.loadout-card .lc-name {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-family: "Bungee", "Luckiest Guy", cursive;
+  font-size: 0.98rem;
+  color: #fff2cc;
+}
+
+.loadout-card .lc-desc {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #dcc39a;
+  line-height: 1.35;
+}
+
+.loadout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+  margin-top: 1.1rem;
+}
+
+#loadout-back,
+#loadout-confirm,
+#loadout-start {
+  min-width: 140px;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+}
+
+#loadout-confirm,
+#loadout-start {
+  border: none;
+  background: linear-gradient(180deg, #ffb020, #e07010);
+  color: #2a1408;
+  box-shadow: 0 4px 0 #8b4510;
+}
+
+#loadout-back {
+  color: #f0d7b0;
+  background: rgba(20, 12, 6, 0.8);
+  border: 2px solid #8b5a2b;
+}
+
+.loadout-hint {
+  margin: 0.7rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b8966a;
+}
+
+.ammo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+#weapon-label {
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: #ffb020;
 }
 
 .controls-bar {

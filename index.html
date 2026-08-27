@@ -95,6 +95,8 @@
         </div>
         <p class="tagline">Shoot poop. Destroy enemy poop. Survive.</p>
         <button id="start-btn">ENTER THE BROWN ZONE</button>
+        <button id="loadout-btn" class="btn-secondary menu-secondary">LOADOUT</button>
+        <p id="loadout-summary" class="loadout-summary">Start: Rifle · Extra: None</p>
       </div>
 
       <div class="controls-bar" aria-label="Controls">
@@ -153,6 +155,26 @@
         <p>Click to continue</p>
       </div>
     </div>
+
+    <div id="loadout" class="hidden" aria-modal="true" role="dialog" aria-labelledby="loadout-title">
+      <div class="loadout-panel">
+        <h2 id="loadout-title">LOADOUT</h2>
+        <p class="loadout-sub">Pick your starter gun — keyboard, click, or gamepad</p>
+
+        <h3 class="loadout-section-label">Starting Gun</h3>
+        <div id="loadout-guns" class="loadout-grid" role="listbox" aria-label="Starting gun"></div>
+
+        <h3 class="loadout-section-label">Starting Extra <span>(optional)</span></h3>
+        <div id="loadout-extras" class="loadout-grid loadout-extras" role="listbox" aria-label="Starting extra"></div>
+
+        <div class="loadout-actions">
+          <button type="button" id="loadout-back" class="btn-secondary">BACK</button>
+          <button type="button" id="loadout-confirm">CONFIRM</button>
+          <button type="button" id="loadout-start">START MATCH</button>
+        </div>
+        <p class="loadout-hint">← → switch · Enter confirm · A/X gamepad · Esc back</p>
+      </div>
+    </div>
   </div>
 
   <div id="hud" class="hidden">
@@ -172,9 +194,12 @@
         <div class="stat"><span class="label">Wave</span><strong id="wave" class="stat-wave">1</strong></div>
         <div class="stat"><span class="label">Kills</span><strong id="kills" class="stat-kills">0</strong></div>
       </div>
-      <div id="ammo-panel">
+        <div id="ammo-panel">
         <div class="ammo-main">
-          <strong id="ammo-text">12/96</strong>
+          <div class="ammo-meta">
+            <span id="weapon-label">RIFLE</span>
+            <strong id="ammo-text">12/96</strong>
+          </div>
           <div class="ammo-bullets" aria-hidden="true"><span></span><span></span><span></span></div>
         </div>
         <div id="reload-bar" class="hidden" aria-hidden="true"><div id="reload-fill"></div></div>

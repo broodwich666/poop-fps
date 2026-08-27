@@ -231,6 +231,120 @@ export function createHeldGun() {
   gun.add(muzzle);
 
   gun.userData.muzzle = muzzle;
+  gun.userData.weaponId = "rifle";
+  return gun;
+}
+
+/** World-space double-barrel chunk shotgun */
+export function createHeldShotgun() {
+  const gun = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3214, roughness: 0.7, metalness: 0.08 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0x3a3e42, roughness: 0.4, metalness: 0.6 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.45, metalness: 0.55, emissive: 0x553300, emissiveIntensity: 0.15 });
+
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.42), wood);
+  stock.position.set(0, -0.02, 0.28);
+  stock.castShadow = true;
+  gun.add(stock);
+
+  const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.36), steel);
+  receiver.position.set(0, 0.02, -0.02);
+  receiver.castShadow = true;
+  gun.add(receiver);
+
+  const makeBarrel = (x) => {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.042, 0.62, 10), steel);
+    b.rotation.x = Math.PI / 2;
+    b.position.set(x, 0.04, -0.48);
+    b.castShadow = true;
+    gun.add(b);
+  };
+  makeBarrel(-0.045);
+  makeBarrel(0.045);
+
+  const pump = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.22), wood);
+  pump.position.set(0, -0.02, -0.28);
+  gun.add(pump);
+
+  const band = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 0.08), brass);
+  band.position.set(0, 0.05, -0.22);
+  gun.add(band);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.18, 0.12), wood);
+  grip.position.set(0, -0.14, 0.08);
+  grip.rotation.x = 0.4;
+  gun.add(grip);
+
+  const tip = createCoiledPoop(0.16, 0x6b3a10);
+  tip.position.set(0, 0.06, -0.82);
+  tip.scale.setScalar(0.5);
+  gun.add(tip);
+
+  const muzzle = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff9944, transparent: true, opacity: 0, depthWrite: false })
+  );
+  muzzle.position.set(0, 0.04, -0.88);
+  gun.add(muzzle);
+
+  gun.userData.muzzle = muzzle;
+  gun.userData.weaponId = "shotgun";
+  return gun;
+}
+
+/** World-space multi-barrel gatling / hose gun */
+export function createHeldGatling() {
+  const gun = new THREE.Group();
+  const dark = new THREE.MeshStandardMaterial({ color: 0x22262a, roughness: 0.4, metalness: 0.65 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0x4a5056, roughness: 0.35, metalness: 0.7 });
+  const hot = new THREE.MeshStandardMaterial({ color: 0x8b4510, roughness: 0.5, metalness: 0.3, emissive: 0x442200, emissiveIntensity: 0.25 });
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.4, 12), dark);
+  body.rotation.x = Math.PI / 2;
+  body.position.set(0, 0.02, 0.05);
+  body.castShadow = true;
+  gun.add(body);
+
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.18, 14), steel);
+  drum.rotation.z = Math.PI / 2;
+  drum.position.set(0.02, -0.02, 0.18);
+  gun.add(drum);
+
+  const barrelGroup = new THREE.Group();
+  barrelGroup.position.set(0, 0.02, -0.35);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.024, 0.7, 8), steel);
+    b.rotation.x = Math.PI / 2;
+    b.position.set(Math.cos(a) * 0.055, Math.sin(a) * 0.055, -0.2);
+    barrelGroup.add(b);
+  }
+  gun.add(barrelGroup);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.1), hot);
+  grip.position.set(0, -0.14, 0.12);
+  grip.rotation.x = 0.3;
+  gun.add(grip);
+
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.2), dark);
+  handle.position.set(0.12, 0.06, 0.05);
+  gun.add(handle);
+
+  const tip = createCoiledPoop(0.14, 0x4a2810);
+  tip.position.set(0, 0.02, -0.85);
+  tip.scale.setScalar(0.45);
+  gun.add(tip);
+
+  const muzzle = new THREE.Mesh(
+    new THREE.SphereGeometry(0.07, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff6622, transparent: true, opacity: 0, depthWrite: false })
+  );
+  muzzle.position.set(0, 0.02, -0.92);
+  gun.add(muzzle);
+
+  gun.userData.muzzle = muzzle;
+  gun.userData.barrelGroup = barrelGroup;
+  gun.userData.weaponId = "gatling";
   return gun;
 }
 
@@ -259,6 +373,39 @@ export function createViewmodelGun() {
   vm.userData.muzzle = muzzle;
   vm.userData.basePos = vm.position.clone();
   vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
+  vm.userData.weaponId = "rifle";
+  return vm;
+}
+
+/** Compact FP viewmodels matching held weapons */
+export function createViewmodelShotgun() {
+  const vm = new THREE.Group();
+  const held = createHeldShotgun();
+  held.scale.setScalar(1.35);
+  held.rotation.set(0.1, 0.2, 0.05);
+  vm.add(held);
+  vm.position.set(0.4, -0.4, -0.55);
+  vm.rotation.set(0.1, 0.18, 0.05);
+  vm.userData.muzzle = held.userData.muzzle;
+  vm.userData.basePos = vm.position.clone();
+  vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
+  vm.userData.weaponId = "shotgun";
+  return vm;
+}
+
+export function createViewmodelGatling() {
+  const vm = new THREE.Group();
+  const held = createHeldGatling();
+  held.scale.setScalar(1.25);
+  held.rotation.set(0.08, 0.15, 0.04);
+  vm.add(held);
+  vm.position.set(0.42, -0.38, -0.5);
+  vm.rotation.set(0.08, 0.15, 0.04);
+  vm.userData.muzzle = held.userData.muzzle;
+  vm.userData.barrelGroup = held.userData.barrelGroup;
+  vm.userData.basePos = vm.position.clone();
+  vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
+  vm.userData.weaponId = "gatling";
   return vm;
 }
 

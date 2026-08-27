@@ -13,18 +13,29 @@ import {
 import {
   createAmmoPickup,
   createEnemyPoop,
+  createHeldGatling,
   createHeldGun,
+  createHeldShotgun,
   createPlayerPoop,
   createProjectileMesh,
   createRifleViewmodel,
   createTrailParticle,
+  createViewmodelGatling,
   createViewmodelGun,
+  createViewmodelShotgun,
 } from "./poop-models.js";
 import {
   buildPowerUpPool,
   createDefaultMods,
   rollOffer,
 } from "./powerups.js";
+import {
+  LOADOUT_EXTRAS,
+  WEAPON_IDS,
+  WEAPONS,
+  createLoadoutState,
+  weaponLabel,
+} from "./weapons.js";
 
 const canvas = document.getElementById("game-canvas");
 const overlay = document.getElementById("overlay");
@@ -52,6 +63,7 @@ const waveToastNum = document.getElementById("wave-toast-num");
 const crosshair = document.getElementById("crosshair");
 const ammoText = document.getElementById("ammo-text");
 const ammoPanel = document.getElementById("ammo-panel");
+const weaponLabelEl = document.getElementById("weapon-label");
 const reloadBar = document.getElementById("reload-bar");
 const reloadFill = document.getElementById("reload-fill");
 const reloadLabel = document.getElementById("reload-label");
@@ -59,6 +71,14 @@ const pickupToast = document.getElementById("pickup-toast");
 const rewardOverlay = document.getElementById("reward-overlay");
 const rewardCards = document.getElementById("reward-cards");
 const rewardConfirm = document.getElementById("reward-confirm");
+const loadoutPanel = document.getElementById("loadout");
+const loadoutBtn = document.getElementById("loadout-btn");
+const loadoutBack = document.getElementById("loadout-back");
+const loadoutConfirm = document.getElementById("loadout-confirm");
+const loadoutStart = document.getElementById("loadout-start");
+const loadoutGuns = document.getElementById("loadout-guns");
+const loadoutExtras = document.getElementById("loadout-extras");
+const loadoutSummary = document.getElementById("loadout-summary");
 const minimapCanvas = document.getElementById("minimap");
 const goMinimapCanvas = document.getElementById("go-minimap");
 const goWaveText = document.getElementById("go-wave-text");
@@ -72,6 +92,14 @@ let rewarding = false;
 let rewardOffer = [];
 let pendingWaveAdvance = null;
 let demoHold = false;
+let loadoutOpen = false;
+let loadoutFocus = { section: "gun", index: 0 };
+const loadout = createLoadoutState();
+let ownedWeapons = new Set(["rifle"]);
+let activeWeaponId = "rifle";
+const weaponMags = { rifle: 12, shotgun: 6, gatling: 60 };
+let gatlingSpin = 0;
+let shootHeld = false;
 
 const ARENA_SIZE = 40;
 const PLAYER_HEIGHT = 1.15;
@@ -136,6 +164,8 @@ const _lookTarget = new THREE.Vector3();
 
 let scene, camera, renderer, controls;
 let swirlGun, rifleGun, activeViewmodel;
+let heldGunModels = {};
+let viewmodelGuns = {};
 let playerRoot, playerBody, heldGun;
 let projectiles = [];
 let fxBits = [];
@@ -154,7 +184,7 @@ let shakeAmp = 0;
 let bobPhase = 0;
 let reloading = false;
 let reloadTimer = 0;
-let heldGunBase = { x: 0.05, z: -0.35, y: 0.85 };
+let heldGunBase = { x: 0.42, z: -0.35, y: 0.85 };
 let audioCtx = null;
 let musicMuted = false;
 let musicTimer = null;
@@ -251,10 +281,7 @@ function toggleMusic() {
   if (!musicMuted) startMusic();
 }
 
-const sfxShoot = () => {
-  playTone({ freq: 160, dur: 0.07, type: "triangle", gain: 0.06, slide: -90 });
-  playTone({ freq: 420, dur: 0.04, type: "square", gain: 0.025, slide: -200 });
-};
+const sfxEmpty = () => playTone({ freq: 70, dur: 0.05, type: "square", gain: 0.035, slide: -15 });
 const sfxHit = () => playTone({ freq: 520, dur: 0.05, type: "square", gain: 0.04, slide: 80 });
 const sfxKill = () => {
   playTone({ freq: 180, dur: 0.12, type: "sawtooth", gain: 0.05, slide: -120 });
@@ -265,7 +292,6 @@ const sfxWave = () => {
   playTone({ freq: 260, dur: 0.1, type: "triangle", gain: 0.04, slide: 120 });
   playTone({ freq: 390, dur: 0.14, type: "triangle", gain: 0.035, slide: 160 });
 };
-const sfxEmpty = () => playTone({ freq: 70, dur: 0.05, type: "square", gain: 0.035, slide: -15 });
 const sfxReload = () => {
   playTone({ freq: 180, dur: 0.08, type: "triangle", gain: 0.04, slide: 40 });
   playTone({ freq: 140, dur: 0.12, type: "square", gain: 0.03, slide: -30 });
@@ -283,9 +309,38 @@ const sfxPowerUp = () => {
   playTone({ freq: 494, dur: 0.1, type: "triangle", gain: 0.04, slide: 140 });
   playTone({ freq: 660, dur: 0.12, type: "sine", gain: 0.03 });
 };
+const sfxWeaponSwap = () => playTone({ freq: 280, dur: 0.06, type: "triangle", gain: 0.04, slide: 90 });
+
+function sfxShootFor(weaponId) {
+  if (weaponId === "shotgun") {
+    playTone({ freq: 90, dur: 0.12, type: "sawtooth", gain: 0.07, slide: -70 });
+    playTone({ freq: 180, dur: 0.08, type: "square", gain: 0.04, slide: -120 });
+    playTone({ freq: 55, dur: 0.14, type: "triangle", gain: 0.05, slide: -20 });
+    return;
+  }
+  if (weaponId === "gatling") {
+    playTone({ freq: 240, dur: 0.035, type: "square", gain: 0.03, slide: -80 });
+    playTone({ freq: 520, dur: 0.025, type: "triangle", gain: 0.018, slide: -160 });
+    return;
+  }
+  playTone({ freq: 160, dur: 0.07, type: "triangle", gain: 0.06, slide: -90 });
+  playTone({ freq: 420, dur: 0.04, type: "square", gain: 0.025, slide: -200 });
+}
+
+function activeWeapon() {
+  return WEAPONS[activeWeaponId] || WEAPONS.rifle;
+}
+
+function syncMagFromState() {
+  weaponMags[activeWeaponId] = state.mag;
+}
+
+function loadMagIntoState() {
+  state.mag = weaponMags[activeWeaponId] ?? activeWeapon().magSize;
+}
 
 function magCapacity() {
-  return MAG_SIZE + Math.max(0, mods.magBonus | 0);
+  return activeWeapon().magSize + Math.max(0, mods.magBonus | 0);
 }
 
 function maxHealth() {
@@ -293,11 +348,18 @@ function maxHealth() {
 }
 
 function reloadDuration() {
-  return RELOAD_TIME / Math.max(0.35, mods.reloadSpeed);
+  return activeWeapon().reloadTime / Math.max(0.35, mods.reloadSpeed);
 }
 
 function fireInterval() {
-  return FIRE_RATE / Math.max(0.35, mods.fireRate);
+  return activeWeapon().fireRate / Math.max(0.35, mods.fireRate);
+}
+
+function updateLoadoutSummary() {
+  if (!loadoutSummary) return;
+  const gun = WEAPONS[loadout.startWeapon]?.name || "Rifle";
+  const extra = LOADOUT_EXTRAS.find((e) => e.id === loadout.startExtra)?.name || "None";
+  loadoutSummary.textContent = `Start: ${gun} · Extra: ${extra}`;
 }
 
 function showPickupToast(text, sticky = false) {
@@ -338,10 +400,23 @@ function applyCameraModeVisuals() {
   const m = currentCamMode();
   if (playerBody) playerBody.visible = mode === "play" && m.showBody;
   if (heldGun) heldGun.visible = mode === "play" && m.showHeld;
-  if (swirlGun) swirlGun.visible = mode === "play" && m.showVM;
-  if (rifleGun) rifleGun.visible = mode === "gameover";
-  if (mode === "play" && m.showVM) activeViewmodel = swirlGun;
-  if (mode === "gameover") activeViewmodel = rifleGun;
+  Object.values(heldGunModels).forEach((g) => {
+    if (g && g !== heldGun) g.visible = false;
+  });
+  Object.values(viewmodelGuns).forEach((g) => {
+    if (g) g.visible = false;
+  });
+  if (mode === "play" && m.showVM) {
+    activeViewmodel = viewmodelGuns[activeWeaponId] || swirlGun;
+    if (activeViewmodel) activeViewmodel.visible = true;
+  } else if (mode === "gameover") {
+    activeViewmodel = rifleGun;
+    if (rifleGun) rifleGun.visible = true;
+  } else {
+    activeViewmodel = null;
+  }
+  if (swirlGun && swirlGun !== activeViewmodel) swirlGun.visible = false;
+  if (rifleGun && mode !== "gameover") rifleGun.visible = false;
   camera.fov = m.fov;
   camera.updateProjectionMatrix();
 }
@@ -355,20 +430,58 @@ function cycleCameraMode() {
 
 function setViewmodel(kind) {
   if (kind === "rifle") {
-    swirlGun.visible = false;
+    Object.values(viewmodelGuns).forEach((g) => { if (g) g.visible = false; });
+    if (swirlGun) swirlGun.visible = false;
     rifleGun.visible = true;
     activeViewmodel = rifleGun;
     if (playerRoot) playerRoot.visible = false;
   } else if (kind === "swirl") {
-    // Play mode uses applyCameraModeVisuals for body/held/vm
     rifleGun.visible = false;
     if (playerRoot) playerRoot.visible = true;
     applyCameraModeVisuals();
   } else {
-    swirlGun.visible = false;
+    Object.values(viewmodelGuns).forEach((g) => { if (g) g.visible = false; });
+    if (swirlGun) swirlGun.visible = false;
     rifleGun.visible = false;
     if (playerRoot) playerRoot.visible = false;
   }
+}
+
+function equipWeapon(id, { announce = true, refill = false } = {}) {
+  if (!WEAPONS[id]) return;
+  const already = ownedWeapons.has(id);
+  ownedWeapons.add(id);
+  syncMagFromState();
+  cancelReload(false);
+  activeWeaponId = id;
+  if (refill || !already) {
+    weaponMags[id] = WEAPONS[id].magSize + Math.max(0, mods.magBonus | 0);
+  }
+  loadMagIntoState();
+  gatlingSpin = 0;
+
+  // Swap held model
+  Object.values(heldGunModels).forEach((g) => {
+    if (g) g.visible = false;
+  });
+  heldGun = heldGunModels[id] || heldGunModels.rifle;
+  if (heldGun) {
+    heldGun.visible = mode === "play" && currentCamMode().showHeld;
+    heldGun.position.set(heldGunBase.x, heldGunBase.y, heldGunBase.z);
+    heldGun.rotation.set(0.05, 0.08, 0.12);
+  }
+  applyCameraModeVisuals();
+  sfxWeaponSwap();
+  if (announce) showPickupToast(already && !refill ? `${WEAPONS[id].name} READY` : `EQUIPPED ${WEAPONS[id].name}`);
+  updateHud();
+}
+
+function cycleOwnedWeapon(dir = 1) {
+  const list = WEAPON_IDS.filter((id) => ownedWeapons.has(id));
+  if (list.length < 2) return;
+  const idx = list.indexOf(activeWeaponId);
+  const next = list[(idx + dir + list.length) % list.length];
+  equipWeapon(next, { announce: true });
 }
 
 function getPlayerPos() {
@@ -480,23 +593,40 @@ function initScene() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   configureMockupRenderer(renderer);
 
-  // Player avatar + held gun in world space
+  // Player avatar + held guns in world space
   playerRoot = new THREE.Group();
   playerRoot.visible = false;
   playerBody = createPlayerPoop(1.05);
   playerRoot.add(playerBody);
-  heldGun = createHeldGun();
-  heldGun.position.set(0.42, 0.85, -0.35);
-  heldGun.rotation.set(0.05, 0.08, 0.12);
-  playerRoot.add(heldGun);
+
+  heldGunModels = {
+    rifle: createHeldGun(),
+    shotgun: createHeldShotgun(),
+    gatling: createHeldGatling(),
+  };
+  Object.values(heldGunModels).forEach((g) => {
+    g.position.set(heldGunBase.x, heldGunBase.y, heldGunBase.z);
+    g.rotation.set(0.05, 0.08, 0.12);
+    g.visible = false;
+    playerRoot.add(g);
+  });
+  heldGun = heldGunModels.rifle;
+  heldGun.visible = false;
   scene.add(playerRoot);
 
-  // FP viewmodel + game-over rifle stay parented to camera
-  swirlGun = createViewmodelGun();
+  // FP viewmodels + game-over rifle stay parented to camera
+  viewmodelGuns = {
+    rifle: createViewmodelGun(),
+    shotgun: createViewmodelShotgun(),
+    gatling: createViewmodelGatling(),
+  };
+  swirlGun = viewmodelGuns.rifle;
   rifleGun = createRifleViewmodel();
-  swirlGun.visible = false;
+  Object.values(viewmodelGuns).forEach((g) => {
+    g.visible = false;
+    camera.add(g);
+  });
   rifleGun.visible = false;
-  camera.add(swirlGun);
   camera.add(rifleGun);
   scene.add(camera);
   activeViewmodel = swirlGun;
@@ -573,15 +703,31 @@ function resetGame() {
   hideRewardUI(false);
   mods = createDefaultMods();
   demoHold = false;
-  state.health = 100;
+  gatlingSpin = 0;
+  shootHeld = false;
+
+  // Apply loadout
+  ownedWeapons = new Set([loadout.startWeapon || "rifle"]);
+  activeWeaponId = loadout.startWeapon || "rifle";
+  WEAPON_IDS.forEach((id) => {
+    weaponMags[id] = WEAPONS[id].magSize;
+  });
+
+  const ctx = { mods, reserveBonus: 0 };
+  const extra = LOADOUT_EXTRAS.find((e) => e.id === loadout.startExtra);
+  extra?.apply?.(ctx);
+
+  state.health = 100 + Math.max(0, mods.maxHpBonus | 0);
   state.score = 0;
   state.kills = 0;
   state.wave = 1;
   state.enemiesToSpawn = 5;
   state.enemiesSpawned = 0;
-  state.mag = MAG_SIZE;
-  state.reserve = START_RESERVE;
-  state.lastHealth = 100;
+  state.reserve = START_RESERVE + (ctx.reserveBonus || 0);
+  state.reserve = Math.min(MAX_RESERVE + 40, state.reserve);
+  state.lastHealth = state.health;
+  weaponMags[activeWeaponId] = WEAPONS[activeWeaponId].magSize + Math.max(0, mods.magBonus | 0);
+  state.mag = weaponMags[activeWeaponId];
   spawnTimer = 0;
   pendingWaveAdvance = null;
   velocity.set(0, 0, 0);
@@ -592,7 +738,9 @@ function resetGame() {
     playerRoot.position.set(0, 0, 0);
     playerRoot.rotation.set(0, 0, 0);
   }
+  equipWeapon(activeWeaponId, { announce: false, refill: true });
   updateHud();
+  updateLoadoutSummary();
 }
 
 function updateHud() {
@@ -609,6 +757,7 @@ function updateHud() {
         ? "linear-gradient(180deg, #f0d060, #d4a017 55%, #b8860b)"
         : "linear-gradient(180deg, #ff6b6b, #c62828 55%, #8b0000)";
   ammoText.textContent = `${state.mag}/${state.reserve}`;
+  if (weaponLabelEl) weaponLabelEl.textContent = weaponLabel(activeWeaponId);
   if (ammoPanel) {
     ammoPanel.classList.toggle("empty-mag", state.mag <= 0 && !reloading);
     ammoPanel.classList.toggle("reloading", reloading);
@@ -746,18 +895,19 @@ function updateReload(dt) {
   if (heldGun && heldGun.visible) {
     const t = 1 - Math.max(0, reloadTimer) / reloadDuration();
     heldGun.rotation.x = 0.05 + Math.sin(t * Math.PI) * 0.55;
-    heldGun.position.y = 0.85 - Math.sin(t * Math.PI) * 0.12;
+    heldGun.position.y = heldGunBase.y - Math.sin(t * Math.PI) * 0.12;
   }
   if (reloadTimer > 0) return;
   const need = magCapacity() - state.mag;
   const take = Math.min(need, state.reserve);
   state.mag += take;
   state.reserve -= take;
+  syncMagFromState();
   reloading = false;
   reloadTimer = 0;
   if (heldGun) {
     heldGun.rotation.x = 0.05;
-    heldGun.position.y = 0.85;
+    heldGun.position.y = heldGunBase.y;
   }
   sfxReloadDone();
   updateHud();
@@ -826,9 +976,10 @@ function updateAmmoPickups(dt) {
   });
 }
 
-function fireOneProjectile(spreadYaw = 0, spreadPitch = 0) {
+function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
+  const wpn = activeWeapon();
   const mesh = createProjectileMesh();
-  const scale = mods.bulletScale;
+  const scale = mods.bulletScale * (opts.bulletScale || wpn.bulletScale || 1);
   mesh.scale.setScalar(scale);
 
   const forward = new THREE.Vector3(
@@ -840,8 +991,9 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0) {
 
   const spawnPos = new THREE.Vector3();
   const cam = currentCamMode();
-  if (cam.showVM && swirlGun?.userData?.muzzle) {
-    swirlGun.userData.muzzle.getWorldPosition(spawnPos);
+  const vm = viewmodelGuns[activeWeaponId];
+  if (cam.showVM && vm?.userData?.muzzle) {
+    vm.userData.muzzle.getWorldPosition(spawnPos);
   } else if (heldGun?.userData?.muzzle) {
     heldGun.userData.muzzle.getWorldPosition(spawnPos);
   } else {
@@ -851,23 +1003,33 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0) {
   }
   mesh.position.copy(spawnPos);
   scene.add(mesh);
+  const speed = (opts.speed || wpn.projectileSpeed) * mods.bulletSpeed;
+  const life = opts.life || wpn.projectileLife;
   projectiles.push({
     mesh,
-    velocity: forward.multiplyScalar(PROJECTILE_SPEED * mods.bulletSpeed),
-    life: 2.4,
+    velocity: forward.multiplyScalar(speed),
+    life,
     trail: [],
     trailTimer: 0,
     bounceLeft: mods.bounce | 0,
     pierceLeft: mods.pierce | 0,
     hitIds: new Set(),
     radius: 0.22 * scale,
+    damage: (opts.damage || wpn.damage || 1),
   });
 }
 
 function shoot() {
-  if (rewarding) return;
+  if (rewarding || loadoutOpen) return;
   const now = performance.now() / 1000;
   if (reloading) return;
+  const wpn = activeWeapon();
+
+  // Gatling wind-up: must be held long enough
+  if (wpn.windup > 0) {
+    if (gatlingSpin < wpn.windup) return;
+  }
+
   if (now - lastShot < fireInterval()) return;
   if (state.mag <= 0) {
     if (now - lastEmptyClick > 0.22) {
@@ -879,46 +1041,64 @@ function shoot() {
     return;
   }
   lastShot = now;
-  state.mag--;
-  weaponRecoil = 1;
+  state.mag -= wpn.ammoPerShot || 1;
+  if (state.mag < 0) state.mag = 0;
+  syncMagFromState();
+  weaponRecoil = wpn.recoil || 1;
   muzzleFlash = 1;
-  shakeAmp = Math.max(shakeAmp, 0.04);
-  sfxShoot();
+  shakeAmp = Math.max(shakeAmp, wpn.shake || 0.04);
+  sfxShootFor(wpn.id);
   crosshair.classList.remove("shoot");
   void crosshair.offsetWidth;
   crosshair.classList.add("shoot");
   setTimeout(() => crosshair.classList.remove("shoot"), 80);
   updateHud();
 
-  const spreadBase = 0.018 * mods.spreadMult;
+  const spreadBase = wpn.spread * mods.spreadMult;
+  const pellets = wpn.pellets || 1;
   const extras = mods.extraProjectiles | 0;
-  fireOneProjectile(
-    (Math.random() - 0.5) * spreadBase * 2,
-    (Math.random() - 0.5) * spreadBase,
-  );
+  for (let i = 0; i < pellets; i++) {
+    const yaw = (Math.random() - 0.5) * spreadBase * 2;
+    const pitch = (Math.random() - 0.5) * spreadBase;
+    fireOneProjectile(yaw, pitch);
+  }
   for (let i = 0; i < extras; i++) {
     const yaw = (Math.random() - 0.5) * (0.12 + spreadBase * 4);
     const pitch = (Math.random() - 0.5) * 0.06;
     fireOneProjectile(yaw, pitch);
   }
-  if (Math.random() < mods.echoChance) {
+  if (Math.random() < mods.echoChance && wpn.id === "rifle") {
     setTimeout(() => {
       if (!playing || rewarding || reloading || state.mag <= 0) return;
       state.mag--;
+      syncMagFromState();
       updateHud();
       fireOneProjectile((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.02);
       weaponRecoil = 0.7;
       muzzleFlash = 0.8;
-      sfxShoot();
+      sfxShootFor("rifle");
     }, 55);
   }
 
   if (state.mag <= 0 && state.reserve > 0) {
-    // soft prompt — auto-start reload after a beat if still empty
     setTimeout(() => {
       if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
     }, 180);
   }
+}
+
+function updateWeaponSpin(dt) {
+  const wpn = activeWeapon();
+  if (wpn.windup > 0 && shootHeld && !reloading && playing && pointerLocked && !rewarding) {
+    gatlingSpin = Math.min(wpn.windup + 0.2, gatlingSpin + dt);
+  } else {
+    gatlingSpin = Math.max(0, gatlingSpin - dt * 1.6);
+  }
+  const spinRate = gatlingSpin > 0.05 ? 18 + gatlingSpin * 40 : 0;
+  const bg = heldGun?.userData?.barrelGroup;
+  if (bg) bg.rotation.z += spinRate * dt;
+  const vbg = viewmodelGuns.gatling?.userData?.barrelGroup;
+  if (vbg && viewmodelGuns.gatling?.visible) vbg.rotation.z += spinRate * dt;
 }
 
 function flashEnemyHit(enemy) {
@@ -1076,8 +1256,8 @@ function updateViewmodel(dt) {
   // Recoil kick on held world gun
   if (heldGun && heldGun.visible && !reloading) {
     heldGun.rotation.x = 0.05 - weaponRecoil * 0.35;
-    heldGun.position.z = -0.35 + weaponRecoil * 0.08;
-    heldGun.position.y = 0.85;
+    heldGun.position.z = heldGunBase.z + weaponRecoil * 0.08;
+    heldGun.position.y = heldGunBase.y;
     if (heldGun.userData.muzzle?.material) {
       heldGun.userData.muzzle.material.opacity = muzzleFlash * 0.95;
       heldGun.userData.muzzle.scale.setScalar(0.7 + muzzleFlash * 1.8);
@@ -1226,7 +1406,7 @@ function updateProjectiles(dt) {
       if (proj.hitIds?.has(id)) continue;
       const hitR = (enemy.userData.hitRadius || 0.8) + (proj.radius || 0.22) - 0.22;
       if (proj.mesh.position.distanceTo(enemyCenter(enemy)) < hitR) {
-        damageEnemy(enemy, proj.mesh.position.clone(), 1);
+        damageEnemy(enemy, proj.mesh.position.clone(), proj.damage || 1);
         proj.hitIds?.add(id);
         if (proj.pierceLeft > 0) {
           proj.pierceLeft--;
@@ -1327,15 +1507,26 @@ function updateSpawns(dt) {
 function applyPowerUp(pu) {
   if (!pu) return;
   mods.instantHeal = 0;
-  pu.apply(mods);
+  pu.apply?.(mods);
   if (mods.instantHeal > 0) {
     state.health = Math.min(maxHealth(), state.health + mods.instantHeal);
     mods.instantHeal = 0;
   }
-  // Cap health to new max after maxHpBonus
   state.health = Math.min(maxHealth(), state.health);
-  // Mag bonus: top off into new capacity from reserve if possible
+  if (pu.grantWeapon) {
+    const id = pu.grantWeapon;
+    const already = ownedWeapons.has(id);
+    if (already) {
+      // Ammo top-up when re-rolling a weapon card
+      const add = id === "gatling" ? 18 : id === "shotgun" ? 8 : 12;
+      state.reserve = Math.min(MAX_RESERVE + 40, state.reserve + add);
+      weaponMags[id] = Math.min(magCapacity() + (id === activeWeaponId ? 0 : WEAPONS[id].magSize), (weaponMags[id] || 0) + Math.ceil(add / 3));
+      showPickupToast(`${WEAPONS[id].name} AMMO +${add}`);
+    }
+    equipWeapon(id, { announce: !already, refill: !already });
+  }
   if (state.mag > magCapacity()) state.mag = magCapacity();
+  syncMagFromState();
   sfxPowerUp();
 }
 
@@ -1514,9 +1705,118 @@ function padMoveActive() {
   return Math.abs(axisDZ(pad.axes[0])) > 0 || Math.abs(axisDZ(pad.axes[1])) > 0;
 }
 
+function renderLoadoutUI() {
+  if (!loadoutGuns || !loadoutExtras) return;
+  loadoutGuns.innerHTML = "";
+  WEAPON_IDS.forEach((id, i) => {
+    const w = WEAPONS[id];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `loadout-card${loadout.startWeapon === id ? " selected" : ""}`;
+    btn.dataset.id = id;
+    btn.innerHTML = `<strong class="lc-name">${w.name}</strong><p class="lc-desc">${w.desc}</p>`;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      loadout.startWeapon = id;
+      loadoutFocus = { section: "gun", index: i };
+      renderLoadoutUI();
+      updateLoadoutSummary();
+      sfxWeaponSwap();
+    });
+    loadoutGuns.appendChild(btn);
+  });
+
+  loadoutExtras.innerHTML = "";
+  LOADOUT_EXTRAS.forEach((ex, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `loadout-card${loadout.startExtra === ex.id ? " selected" : ""}`;
+    btn.dataset.id = ex.id;
+    btn.innerHTML = `<strong class="lc-name">${ex.name}</strong><p class="lc-desc">${ex.desc}</p>`;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      loadout.startExtra = ex.id;
+      loadoutFocus = { section: "extra", index: i };
+      renderLoadoutUI();
+      updateLoadoutSummary();
+      playTone({ freq: 360, dur: 0.05, type: "triangle", gain: 0.03 });
+    });
+    loadoutExtras.appendChild(btn);
+  });
+}
+
+function openLoadout() {
+  loadoutOpen = true;
+  menu.classList.add("hidden");
+  loadoutPanel.classList.remove("hidden");
+  renderLoadoutUI();
+  updateLoadoutSummary();
+  ensureAudio();
+}
+
+function closeLoadout() {
+  loadoutOpen = false;
+  loadoutPanel.classList.add("hidden");
+  menu.classList.remove("hidden");
+  updateLoadoutSummary();
+}
+
+function confirmLoadout(startMatch = false) {
+  updateLoadoutSummary();
+  sfxPowerUp();
+  if (startMatch) {
+    loadoutOpen = false;
+    loadoutPanel.classList.add("hidden");
+    startGame();
+    return;
+  }
+  closeLoadout();
+  showPickupToast(`LOADOUT: ${WEAPONS[loadout.startWeapon].short}`);
+}
+
+function nudgeLoadout(dir) {
+  if (!loadoutOpen) return;
+  if (loadoutFocus.section === "gun") {
+    const i = (loadoutFocus.index + dir + WEAPON_IDS.length) % WEAPON_IDS.length;
+    loadoutFocus.index = i;
+    loadout.startWeapon = WEAPON_IDS[i];
+  } else {
+    const i = (loadoutFocus.index + dir + LOADOUT_EXTRAS.length) % LOADOUT_EXTRAS.length;
+    loadoutFocus.index = i;
+    loadout.startExtra = LOADOUT_EXTRAS[i].id;
+  }
+  renderLoadoutUI();
+  updateLoadoutSummary();
+  sfxWeaponSwap();
+}
+
 function pollGamepad(dt) {
   const pad = getPad();
-  if (!pad) return;
+  if (!pad) {
+    if (!(keys["Mouse0"] || false)) {
+      // mouse handled separately
+    }
+    return;
+  }
+
+  if (loadoutOpen) {
+    if (padBtnEdge("loLeft", padBtn(pad, 14) || axisDZ(pad.axes[0]) < -0.6)) nudgeLoadout(-1);
+    if (padBtnEdge("loRight", padBtn(pad, 15) || axisDZ(pad.axes[0]) > 0.6)) nudgeLoadout(1);
+    if (padBtnEdge("loUp", padBtn(pad, 12) || axisDZ(pad.axes[1]) < -0.6)) {
+      loadoutFocus.section = "gun";
+      loadoutFocus.index = Math.max(0, WEAPON_IDS.indexOf(loadout.startWeapon));
+      renderLoadoutUI();
+    }
+    if (padBtnEdge("loDown", padBtn(pad, 13) || axisDZ(pad.axes[1]) > 0.6)) {
+      loadoutFocus.section = "extra";
+      loadoutFocus.index = Math.max(0, LOADOUT_EXTRAS.findIndex((e) => e.id === loadout.startExtra));
+      renderLoadoutUI();
+    }
+    if (padBtnEdge("loConfirm", padBtn(pad, 0))) confirmLoadout(false);
+    if (padBtnEdge("loStart", padBtn(pad, 1) || padBtn(pad, 9))) confirmLoadout(true);
+    if (padBtnEdge("loBack", padBtn(pad, 2) || padBtn(pad, 8))) closeLoadout();
+    return;
+  }
 
   // Right stick look — axes 2/3 standard; some browsers use 3/4
   const rx = axisDZ(pad.axes[2] ?? 0);
@@ -1527,7 +1827,6 @@ function pollGamepad(dt) {
     lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
   }
 
-  // A (0) confirm rewards; also RT/A shoot when playing
   if (rewarding) {
     if (padBtnEdge("rewardConfirm", padBtn(pad, 0) || padBtn(pad, 1))) {
       confirmAllRewards();
@@ -1535,15 +1834,20 @@ function pollGamepad(dt) {
     return;
   }
 
-  // RT (7) or A/X (0) shoot
-  const shootHeld = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4 || padBtn(pad, 0);
-  if (playing && pointerLocked && shootHeld) shoot();
+  // RT (7) or A (0) shoot
+  const padShoot = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4 || padBtn(pad, 0);
+  if (padShoot) shootHeld = true;
+  if (playing && pointerLocked && padShoot) shoot();
 
   // X / Square (2) reload
   if (padBtnEdge("reload", padBtn(pad, 2)) && playing && pointerLocked) tryReload();
 
   // Y / Triangle (3) camera cycle
   if (padBtnEdge("cam", padBtn(pad, 3))) cycleCameraMode();
+
+  // LB/RB cycle weapons
+  if (padBtnEdge("wepPrev", padBtn(pad, 4)) && playing) cycleOwnedWeapon(-1);
+  if (padBtnEdge("wepNext", padBtn(pad, 5)) && playing) cycleOwnedWeapon(1);
 
   // Start (9) pause / unlock
   if (padBtnEdge("start", padBtn(pad, 9))) {
@@ -1559,6 +1863,15 @@ function animate() {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
+  // Mouse LMB held tracking via buttons on pad + keys; also check buttons
+  if (!getPad()) {
+    // shootHeld set by mousedown/mouseup
+  } else {
+    const pad = getPad();
+    const padShoot = padBtn(pad, 7) || (pad.buttons[7]?.value ?? 0) > 0.4 || padBtn(pad, 0);
+    if (!padShoot && !keys._mouseDown) shootHeld = false;
+  }
+
   pollGamepad(dt);
 
   if (playing && mode === "play") {
@@ -1571,6 +1884,7 @@ function animate() {
     } else if (pointerLocked) {
       updatePlayer(dt);
       updateReload(dt);
+      updateWeaponSpin(dt);
       updateViewmodel(dt);
       updateProjectiles(dt);
       updateFxBits(dt);
@@ -1578,6 +1892,7 @@ function animate() {
       updateSpawns(dt);
       updateAmmoPickups(dt);
       updateSplats(dt);
+      if (shootHeld) shoot();
     } else {
       updateViewmodel(dt);
       updateFollowCamera(dt);
@@ -1606,6 +1921,26 @@ function animate() {
 
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
+  if (loadoutOpen) {
+    if (e.code === "ArrowLeft" || e.code === "KeyA") { e.preventDefault(); nudgeLoadout(-1); }
+    if (e.code === "ArrowRight" || e.code === "KeyD") { e.preventDefault(); nudgeLoadout(1); }
+    if (e.code === "ArrowUp" || e.code === "KeyW") {
+      e.preventDefault();
+      loadoutFocus.section = "gun";
+      loadoutFocus.index = Math.max(0, WEAPON_IDS.indexOf(loadout.startWeapon));
+      renderLoadoutUI();
+    }
+    if (e.code === "ArrowDown" || e.code === "KeyS") {
+      e.preventDefault();
+      loadoutFocus.section = "extra";
+      loadoutFocus.index = Math.max(0, LOADOUT_EXTRAS.findIndex((x) => x.id === loadout.startExtra));
+      renderLoadoutUI();
+    }
+    if (e.code === "Enter") { e.preventDefault(); confirmLoadout(false); }
+    if (e.code === "Space") { e.preventDefault(); confirmLoadout(true); }
+    if (e.code === "Escape") { e.preventDefault(); closeLoadout(); }
+    return;
+  }
   if (rewarding) {
     if (e.code === "Enter" || e.code === "Space") {
       e.preventDefault();
@@ -1617,6 +1952,11 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (e.code === "KeyR" && playing && pointerLocked) tryReload();
+  if (e.code === "KeyQ" && playing) { e.preventDefault(); cycleOwnedWeapon(-1); }
+  if (e.code === "KeyE" && playing && !e.repeat) { /* optional */ }
+  if (e.code === "Digit1" && playing && ownedWeapons.has("rifle")) equipWeapon("rifle");
+  if (e.code === "Digit2" && playing && ownedWeapons.has("shotgun")) equipWeapon("shotgun");
+  if (e.code === "Digit3" && playing && ownedWeapons.has("gatling")) equipWeapon("gatling");
   if (e.code === "KeyC" && playing) {
     e.preventDefault();
     cycleCameraMode();
@@ -1630,9 +1970,24 @@ window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
 });
 window.addEventListener("mousedown", (e) => {
-  if (rewarding) return;
+  if (rewarding || loadoutOpen) return;
+  if (e.button === 0) {
+    keys._mouseDown = true;
+    shootHeld = true;
+  }
   if (playing && pointerLocked && e.button === 0) shoot();
 });
+window.addEventListener("mouseup", (e) => {
+  if (e.button === 0) {
+    keys._mouseDown = false;
+    if (!getPad()) shootHeld = false;
+  }
+});
+window.addEventListener("wheel", (e) => {
+  if (!playing || rewarding || loadoutOpen) return;
+  if (e.deltaY > 0) cycleOwnedWeapon(1);
+  else if (e.deltaY < 0) cycleOwnedWeapon(-1);
+}, { passive: true });
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -1648,6 +2003,22 @@ startBtn.addEventListener("click", (e) => {
   ensureAudio();
   startGame();
 });
+loadoutBtn?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  openLoadout();
+});
+loadoutBack?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  closeLoadout();
+});
+loadoutConfirm?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  confirmLoadout(false);
+});
+loadoutStart?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  confirmLoadout(true);
+});
 restartBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   ensureAudio();
@@ -1662,7 +2033,7 @@ rewardConfirm?.addEventListener("click", (e) => {
   confirmAllRewards();
 });
 overlay.addEventListener("click", () => {
-  if (rewarding) return;
+  if (rewarding || loadoutOpen) return;
   if (playing && !pointerLocked && state.health > 0) {
     pausePanel.classList.add("hidden");
     controls.lock();
@@ -1670,6 +2041,7 @@ overlay.addEventListener("click", () => {
 });
 
 initScene();
+updateLoadoutSummary();
 animate();
 
 window.__poopFpsForceGameOver = () => {
@@ -1702,6 +2074,7 @@ window.__poopFpsForceReward = () => {
 };
 window.__poopFpsEmptyMag = () => {
   state.mag = 0;
+  syncMagFromState();
   updateHud();
 };
 window.__poopFpsSpawnAmmo = () => {
@@ -1743,4 +2116,26 @@ window.__poopFpsPickupToast = () => {
 };
 window.__poopFpsStickyAmmoToast = () => {
   showPickupToast("+18 AMMO", true);
+};
+window.__poopFpsGiveShotgun = () => {
+  if (!playing) { ensureAudio(); startGame(); }
+  demoHold = true;
+  enemies.forEach((e) => scene.remove(e));
+  enemies = [];
+  equipWeapon("shotgun", { announce: true, refill: true });
+};
+window.__poopFpsGiveGatling = () => {
+  if (!playing) { ensureAudio(); startGame(); }
+  demoHold = true;
+  enemies.forEach((e) => scene.remove(e));
+  enemies = [];
+  equipWeapon("gatling", { announce: true, refill: true });
+  gatlingSpin = WEAPONS.gatling.windup;
+};
+window.__poopFpsOpenLoadout = () => openLoadout();
+window.__poopFpsSetLoadout = (gun, extra = "none") => {
+  if (WEAPONS[gun]) loadout.startWeapon = gun;
+  if (LOADOUT_EXTRAS.some((e) => e.id === extra)) loadout.startExtra = extra;
+  updateLoadoutSummary();
+  renderLoadoutUI();
 };
