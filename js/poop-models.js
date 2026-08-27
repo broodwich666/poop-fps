@@ -137,13 +137,13 @@ export function createEnemyPoop(sizeScale = 1) {
 
 export function createViewmodelGun() {
   const vm = new THREE.Group();
-  // Compact lower-right coil — readable without eating half the FOV
-  const gun = createCoiledPoop(0.7, 0x5c3010);
-  gun.rotation.set(0.28, -0.72, 0.12);
+  // Small lower-right coil — must leave most of the FOV clear for aiming
+  const gun = createCoiledPoop(0.42, 0x5c3010);
+  gun.rotation.set(0.35, -0.85, 0.18);
   vm.add(gun);
 
   const muzzle = new THREE.Mesh(
-    new THREE.SphereGeometry(0.06, 8, 8),
+    new THREE.SphereGeometry(0.045, 8, 8),
     new THREE.MeshBasicMaterial({
       color: 0xffcc66,
       transparent: true,
@@ -151,11 +151,11 @@ export function createViewmodelGun() {
       depthWrite: false,
     })
   );
-  muzzle.position.set(0.08, 0.55, 0.28);
+  muzzle.position.set(0.05, 0.38, 0.2);
   gun.add(muzzle);
 
-  vm.position.set(0.38, -0.42, -0.52);
-  vm.rotation.set(0.12, 0.42, 0.1);
+  vm.position.set(0.48, -0.52, -0.62);
+  vm.rotation.set(0.18, 0.55, 0.12);
   vm.userData.gun = gun;
   vm.userData.muzzle = muzzle;
   vm.userData.basePos = vm.position.clone();

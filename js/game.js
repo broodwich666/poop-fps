@@ -497,8 +497,8 @@ function updateViewmodel(dt) {
   weaponRecoil = THREE.MathUtils.lerp(weaponRecoil, 0, dt * 12);
   muzzleFlash = Math.max(0, muzzleFlash - dt * 8);
 
-  const base = viewmodel.userData.basePos || new THREE.Vector3(0.38, -0.42, -0.52);
-  const baseRot = viewmodel.userData.baseRot || { x: 0.12, y: 0.42, z: 0.1 };
+  const base = viewmodel.userData.basePos || new THREE.Vector3(0.48, -0.52, -0.62);
+  const baseRot = viewmodel.userData.baseRot || { x: 0.18, y: 0.55, z: 0.12 };
 
   // Walk bob when moving
   const moving = keys["KeyW"] || keys["KeyA"] || keys["KeyS"] || keys["KeyD"];
@@ -519,7 +519,7 @@ function updateViewmodel(dt) {
   viewmodel.rotation.z = baseRot.z + weaponRecoil * 0.08;
 
   if (viewmodel.userData.gun) {
-    viewmodel.userData.gun.rotation.y = -0.72 - weaponRecoil * 0.2;
+    viewmodel.userData.gun.rotation.y = -0.85 - weaponRecoil * 0.25;
   }
   if (viewmodel.userData.muzzle?.material) {
     viewmodel.userData.muzzle.material.opacity = muzzleFlash * 0.95;
