@@ -1,0 +1,278 @@
+:root {
+  --brown-deep: #1a0c04;
+  --brown: #2a1408;
+  --brown-mid: #5a3214;
+  --tan: #e8c48a;
+  --cream: #f5e6c8;
+  --orange: #ff8a1a;
+  --amber: #ffb020;
+  --gold: #ffe066;
+  --grass: #3d6b28;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  color: var(--cream);
+  font-family: "Nunito", system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 140, 40, 0.22), transparent 55%),
+    linear-gradient(180deg, #2a180c 0%, #15240f 42%, #0e1a0a 100%);
+}
+
+body {
+  overflow-x: hidden;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 88vh;
+  padding: 2.5rem 1.25rem 2rem;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(20, 10, 4, 0.35), rgba(12, 20, 8, 0.55)),
+    url("../media/shot-title.png") center / cover no-repeat;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 120px;
+  background: linear-gradient(180deg, transparent, #15240f);
+  pointer-events: none;
+}
+
+.eyebrow {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  color: var(--gold);
+  text-shadow: 0 2px 0 #2a1408;
+}
+
+.brand {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  line-height: 0.92;
+  text-shadow: 0 4px 0 #3a1804, 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.brand-poop {
+  display: block;
+  font-family: "Luckiest Guy", "Bungee", cursive;
+  font-size: clamp(3.4rem, 12vw, 6.5rem);
+  color: #c8783a;
+  letter-spacing: 0.04em;
+}
+
+.brand-shooter {
+  display: block;
+  margin-top: 0.1rem;
+  font-family: "Bungee", cursive;
+  font-size: clamp(1.6rem, 5.5vw, 2.8rem);
+  color: var(--gold);
+  letter-spacing: 0.12em;
+}
+
+.brand-fps {
+  display: inline-block;
+  margin-top: 0.55rem;
+  padding: 0.2rem 0.7rem;
+  font-family: "Bungee", cursive;
+  font-size: clamp(1rem, 3vw, 1.35rem);
+  color: var(--brown-deep);
+  background: linear-gradient(180deg, var(--amber), var(--orange));
+  border: 3px solid #5c2a08;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #3a1804;
+}
+
+.tagline {
+  position: relative;
+  z-index: 1;
+  max-width: 28rem;
+  margin: 1.1rem 0 1.4rem;
+  font-size: clamp(1.05rem, 2.6vw, 1.25rem);
+  font-weight: 800;
+  color: var(--tan);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+}
+
+.play-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  min-width: 220px;
+  padding: 1rem 1.6rem;
+  font-family: "Bungee", cursive;
+  font-size: 1.45rem;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  color: var(--cream);
+  text-shadow: 0 2px 0 rgba(90, 30, 0, 0.55);
+  background:
+    radial-gradient(circle at 50% 28%, #2a1608 0%, #1a0c04 55%, #0e0602 100%);
+  border: 3px solid var(--orange);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px #5c2a08,
+    0 0 28px 6px rgba(255, 140, 0, 0.55),
+    0 6px 0 #3a1804;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.play-btn:hover,
+.play-btn:focus-visible {
+  transform: scale(1.05);
+  filter: brightness(1.08);
+  outline: none;
+}
+
+.play-btn:active {
+  transform: translateY(2px) scale(0.98);
+}
+
+.play-btn-sm {
+  min-width: 160px;
+  padding: 0.75rem 1.2rem;
+  font-size: 1.1rem;
+}
+
+.play-note {
+  position: relative;
+  z-index: 1;
+  margin: 0.85rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #b8966a;
+}
+
+.about,
+.shots,
+.controls,
+.foot {
+  width: min(980px, 92vw);
+  margin: 0 auto;
+  padding: 1.5rem 0 0.5rem;
+}
+
+.about h2,
+.controls h2 {
+  margin: 0 0 0.55rem;
+  font-family: "Bungee", cursive;
+  font-size: 1.35rem;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+}
+
+.about p {
+  margin: 0;
+  max-width: 42rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.45;
+  color: var(--tan);
+}
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  padding-top: 1.75rem;
+  padding-bottom: 0.5rem;
+}
+
+@media (max-width: 760px) {
+  .shots {
+    grid-template-columns: 1fr;
+  }
+}
+
+.shots figure {
+  margin: 0;
+  overflow: hidden;
+  border: 3px solid #8b5a2b;
+  border-radius: 12px;
+  background: var(--brown);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.shots img {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: #1a1208;
+}
+
+.shots figcaption {
+  padding: 0.45rem 0.6rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+  background: rgba(20, 12, 6, 0.92);
+}
+
+.controls ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.55rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.controls li {
+  padding: 0.65rem 0.75rem;
+  font-weight: 800;
+  color: var(--cream);
+  background: rgba(20, 12, 6, 0.72);
+  border: 2px solid #8b5a2b;
+  border-radius: 10px;
+}
+
+kbd {
+  display: inline-block;
+  margin: 0 0.12rem;
+  padding: 0.08rem 0.38rem;
+  font-family: "Nunito", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: var(--brown-deep);
+  background: linear-gradient(180deg, #f0d7b0, #d4a574);
+  border: 1px solid #8b5a2b;
+  border-radius: 5px;
+  box-shadow: 0 2px 0 #5a3214;
+}
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 0 2.5rem;
+  text-align: center;
+}
+
+.foot p {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #b8966a;
+}
