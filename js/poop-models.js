@@ -328,3 +328,49 @@ export function createTrailParticle() {
   mesh.scale.set(1.35, 0.75, 1.35);
   return mesh;
 }
+
+/** Glowing ammo crate pickup — bob + pulse in game loop */
+export function createAmmoPickup(amount = 18) {
+  const g = new THREE.Group();
+  const crate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.55, 0.4, 0.55),
+    new THREE.MeshStandardMaterial({
+      color: 0xc9a227,
+      roughness: 0.45,
+      metalness: 0.35,
+      emissive: 0x664400,
+      emissiveIntensity: 0.55,
+    })
+  );
+  crate.position.y = 0.22;
+  crate.castShadow = true;
+  g.add(crate);
+
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(0.58, 0.08, 0.58),
+    new THREE.MeshBasicMaterial({ color: 0xffe066 })
+  );
+  stripe.position.y = 0.28;
+  g.add(stripe);
+
+  const glow = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.55, 0.7, 0.05, 16),
+    new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.35, depthWrite: false })
+  );
+  glow.position.y = 0.03;
+  g.add(glow);
+
+  // Tiny bullet icons on top
+  const tip = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.22, 6),
+    new THREE.MeshStandardMaterial({ color: 0xf0d060, roughness: 0.4, metalness: 0.5, emissive: 0xaa8800, emissiveIntensity: 0.4 })
+  );
+  tip.position.set(0, 0.52, 0);
+  g.add(tip);
+
+  g.userData.amount = amount;
+  g.userData.bob = Math.random() * Math.PI * 2;
+  g.userData.glow = glow;
+  g.userData.crate = crate;
+  return g;
+}

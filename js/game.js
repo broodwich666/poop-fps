@@ -11,6 +11,7 @@ import {
   createMockupSplat,
 } from "./arena.js";
 import {
+  createAmmoPickup,
   createEnemyPoop,
   createHeldGun,
   createPlayerPoop,
@@ -19,6 +20,11 @@ import {
   createTrailParticle,
   createViewmodelGun,
 } from "./poop-models.js";
+import {
+  buildPowerUpPool,
+  createDefaultMods,
+  rollOffer,
+} from "./powerups.js";
 
 const canvas = document.getElementById("game-canvas");
 const overlay = document.getElementById("overlay");
@@ -45,6 +51,14 @@ const waveToast = document.getElementById("wave-toast");
 const waveToastNum = document.getElementById("wave-toast-num");
 const crosshair = document.getElementById("crosshair");
 const ammoText = document.getElementById("ammo-text");
+const ammoPanel = document.getElementById("ammo-panel");
+const reloadBar = document.getElementById("reload-bar");
+const reloadFill = document.getElementById("reload-fill");
+const reloadLabel = document.getElementById("reload-label");
+const pickupToast = document.getElementById("pickup-toast");
+const rewardOverlay = document.getElementById("reward-overlay");
+const rewardCards = document.getElementById("reward-cards");
+const rewardConfirm = document.getElementById("reward-confirm");
 const minimapCanvas = document.getElementById("minimap");
 const goMinimapCanvas = document.getElementById("go-minimap");
 const goWaveText = document.getElementById("go-wave-text");
@@ -52,14 +66,20 @@ const goHealthFill = document.getElementById("go-health-fill");
 const goHealthText = document.getElementById("go-health-text");
 const goAmmoText = document.getElementById("go-ammo-text");
 
+const POWER_POOL = buildPowerUpPool();
+let mods = createDefaultMods();
+let rewarding = false;
+let rewardOffer = [];
+let pendingWaveAdvance = null;
+
 const ARENA_SIZE = 40;
 const PLAYER_HEIGHT = 1.15;
 const EYE_HEIGHT = 1.45;
 const GRAVITY = 25;
 const MOVE_SPEED = 8.5;
 const SPRINT_MULT = 1.65;
-const FIRE_RATE = 0.16;
-const PROJECTILE_SPEED = 32;
+const FIRE_RATE = 0.14;
+const PROJECTILE_SPEED = 34;
 const ENEMY_SPEED = 3.6;
 const ENEMY_DAMAGE = 12;
 const ENEMY_ATTACK_COOLDOWN = 1.05;
@@ -67,6 +87,9 @@ const MAX_TRAIL_PARTS = 10;
 const MAX_WAVES = 10;
 const MAG_SIZE = 12;
 const START_RESERVE = 96;
+const RELOAD_TIME = 1.05;
+const AMMO_PICKUP_AMOUNT = 18;
+const MAX_RESERVE = 120;
 const LOOK_SENS = 0.0022;
 const PAD_LOOK_SENS = 2.4;
 const DEADZONE = 0.18;
@@ -117,15 +140,20 @@ let projectiles = [];
 let fxBits = [];
 let enemies = [];
 let splats = [];
+let ammoPickups = [];
 let playing = false;
 let pointerLocked = false;
 let lastShot = 0;
+let lastEmptyClick = 0;
 let spawnTimer = 0;
 let enemyIdCounter = 0;
 let weaponRecoil = 0;
 let muzzleFlash = 0;
 let shakeAmp = 0;
 let bobPhase = 0;
+let reloading = false;
+let reloadTimer = 0;
+let heldGunBase = { x: 0.05, z: -0.35, y: 0.85 };
 let audioCtx = null;
 let musicMuted = false;
 let musicTimer = null;
@@ -236,8 +264,53 @@ const sfxWave = () => {
   playTone({ freq: 260, dur: 0.1, type: "triangle", gain: 0.04, slide: 120 });
   playTone({ freq: 390, dur: 0.14, type: "triangle", gain: 0.035, slide: 160 });
 };
-const sfxEmpty = () => playTone({ freq: 90, dur: 0.06, type: "square", gain: 0.03, slide: -20 });
-const sfxReload = () => playTone({ freq: 200, dur: 0.1, type: "triangle", gain: 0.04, slide: 80 });
+const sfxEmpty = () => playTone({ freq: 70, dur: 0.05, type: "square", gain: 0.035, slide: -15 });
+const sfxReload = () => {
+  playTone({ freq: 180, dur: 0.08, type: "triangle", gain: 0.04, slide: 40 });
+  playTone({ freq: 140, dur: 0.12, type: "square", gain: 0.03, slide: -30 });
+};
+const sfxReloadDone = () => {
+  playTone({ freq: 320, dur: 0.07, type: "triangle", gain: 0.045, slide: 100 });
+  playTone({ freq: 520, dur: 0.05, type: "square", gain: 0.025 });
+};
+const sfxAmmoPickup = () => {
+  playTone({ freq: 440, dur: 0.07, type: "triangle", gain: 0.045, slide: 120 });
+  playTone({ freq: 660, dur: 0.1, type: "sine", gain: 0.03, slide: 80 });
+};
+const sfxPowerUp = () => {
+  playTone({ freq: 330, dur: 0.08, type: "triangle", gain: 0.045, slide: 100 });
+  playTone({ freq: 494, dur: 0.1, type: "triangle", gain: 0.04, slide: 140 });
+  playTone({ freq: 660, dur: 0.12, type: "sine", gain: 0.03 });
+};
+
+function magCapacity() {
+  return MAG_SIZE + Math.max(0, mods.magBonus | 0);
+}
+
+function maxHealth() {
+  return 100 + Math.max(0, mods.maxHpBonus | 0);
+}
+
+function reloadDuration() {
+  return RELOAD_TIME / Math.max(0.35, mods.reloadSpeed);
+}
+
+function fireInterval() {
+  return FIRE_RATE / Math.max(0.35, mods.fireRate);
+}
+
+function showPickupToast(text) {
+  if (!pickupToast) return;
+  pickupToast.textContent = text;
+  pickupToast.classList.remove("hidden", "show");
+  void pickupToast.offsetWidth;
+  pickupToast.classList.add("show");
+  clearTimeout(showPickupToast._t);
+  showPickupToast._t = setTimeout(() => {
+    pickupToast.classList.remove("show");
+    pickupToast.classList.add("hidden");
+  }, 1400);
+}
 
 function formatScore(n) {
   return n.toLocaleString("en-US");
@@ -436,7 +509,7 @@ function initScene() {
   controls.addEventListener("unlock", () => {
     pointerLocked = false;
     document.body.classList.remove("is-playing");
-    if (playing && state.health > 0) {
+    if (playing && state.health > 0 && !rewarding) {
       overlay.classList.remove("playing");
       pausePanel.classList.remove("hidden");
     }
@@ -448,7 +521,7 @@ function initScene() {
 }
 
 function onMouseLook(e) {
-  if (!playing || !pointerLocked || mode !== "play") return;
+  if (!playing || !pointerLocked || mode !== "play" || rewarding) return;
   lookYaw -= e.movementX * LOOK_SENS;
   lookPitch -= e.movementY * LOOK_SENS;
   lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
@@ -461,20 +534,35 @@ function clearCombat() {
   });
   fxBits.forEach((b) => scene.remove(b.mesh));
   enemies.forEach((e) => scene.remove(e));
+  ammoPickups.forEach((p) => scene.remove(p.mesh));
   splats.forEach((s) => {
     if (!s.userData.permanent) scene.remove(s);
   });
   projectiles = [];
   fxBits = [];
   enemies = [];
+  ammoPickups = [];
   splats = splats.filter((s) => s.userData.permanent);
   weaponRecoil = 0;
   muzzleFlash = 0;
   shakeAmp = 0;
+  cancelReload(false);
+}
+
+function cancelReload(playSound = false) {
+  reloading = false;
+  reloadTimer = 0;
+  if (reloadBar) reloadBar.classList.add("hidden");
+  if (reloadLabel) reloadLabel.classList.add("hidden");
+  if (reloadFill) reloadFill.style.width = "0%";
+  ammoPanel?.classList.remove("reloading");
+  if (playSound) sfxEmpty();
 }
 
 function resetGame() {
   clearCombat();
+  hideRewardUI(false);
+  mods = createDefaultMods();
   state.health = 100;
   state.score = 0;
   state.kills = 0;
@@ -483,7 +571,9 @@ function resetGame() {
   state.enemiesSpawned = 0;
   state.mag = MAG_SIZE;
   state.reserve = START_RESERVE;
+  state.lastHealth = 100;
   spawnTimer = 0;
+  pendingWaveAdvance = null;
   velocity.set(0, 0, 0);
   lookYaw = 0;
   lookPitch = 0;
@@ -499,15 +589,31 @@ function updateHud() {
   scoreEl.textContent = formatScore(state.score);
   waveEl.textContent = state.wave;
   killsEl.textContent = state.kills;
-  healthFill.style.width = `${Math.max(0, state.health)}%`;
+  const hpPct = (state.health / maxHealth()) * 100;
+  healthFill.style.width = `${Math.max(0, hpPct)}%`;
   healthText.textContent = Math.max(0, Math.ceil(state.health));
   healthFill.style.background =
-    state.health > 50
+    hpPct > 50
       ? "linear-gradient(180deg, #e2ff78, #8fd63a 48%, #5aa81a)"
-      : state.health > 25
+      : hpPct > 25
         ? "linear-gradient(180deg, #f0d060, #d4a017 55%, #b8860b)"
         : "linear-gradient(180deg, #ff6b6b, #c62828 55%, #8b0000)";
   ammoText.textContent = `${state.mag}/${state.reserve}`;
+  if (ammoPanel) {
+    ammoPanel.classList.toggle("empty-mag", state.mag <= 0 && !reloading);
+    ammoPanel.classList.toggle("reloading", reloading);
+  }
+  if (reloading) {
+    const dur = reloadDuration();
+    const pct = Math.min(100, ((dur - reloadTimer) / dur) * 100);
+    reloadBar?.classList.remove("hidden");
+    reloadLabel?.classList.remove("hidden");
+    if (reloadFill) reloadFill.style.width = `${pct}%`;
+  } else {
+    reloadBar?.classList.add("hidden");
+    reloadLabel?.classList.add("hidden");
+    if (reloadFill) reloadFill.style.width = "0%";
+  }
   drawMinimap(minimapCanvas, false);
 }
 
@@ -603,37 +709,123 @@ function spawnEnemyAtEdge() {
 }
 
 function tryReload() {
-  if (state.mag >= MAG_SIZE || state.reserve <= 0) return;
-  const need = MAG_SIZE - state.mag;
-  const take = Math.min(need, state.reserve);
-  state.mag += take;
-  state.reserve -= take;
+  if (rewarding || reloading) return;
+  if (state.mag >= magCapacity() || state.reserve <= 0) {
+    if (state.reserve <= 0 && state.mag <= 0) {
+      const now = performance.now() / 1000;
+      if (now - lastEmptyClick > 0.25) {
+        lastEmptyClick = now;
+        sfxEmpty();
+      }
+    }
+    return;
+  }
+  reloading = true;
+  reloadTimer = reloadDuration();
   sfxReload();
+  // Kick gun pose slightly
+  weaponRecoil = Math.max(weaponRecoil, 0.35);
   updateHud();
 }
 
-function shoot() {
-  const now = performance.now() / 1000;
-  if (now - lastShot < FIRE_RATE) return;
-  if (state.mag <= 0) {
-    sfxEmpty();
-    tryReload();
-    return;
-  }
-  lastShot = now;
-  state.mag--;
-  weaponRecoil = 1;
-  muzzleFlash = 1;
-  shakeAmp = Math.max(shakeAmp, 0.035);
-  sfxShoot();
-  crosshair.classList.remove("shoot");
-  void crosshair.offsetWidth;
-  crosshair.classList.add("shoot");
-  setTimeout(() => crosshair.classList.remove("shoot"), 80);
+function updateReload(dt) {
+  if (!reloading) return;
+  reloadTimer -= dt;
   updateHud();
+  // Animate held gun dip during reload
+  if (heldGun && heldGun.visible) {
+    const t = 1 - Math.max(0, reloadTimer) / reloadDuration();
+    heldGun.rotation.x = 0.05 + Math.sin(t * Math.PI) * 0.55;
+    heldGun.position.y = 0.85 - Math.sin(t * Math.PI) * 0.12;
+  }
+  if (reloadTimer > 0) return;
+  const need = magCapacity() - state.mag;
+  const take = Math.min(need, state.reserve);
+  state.mag += take;
+  state.reserve -= take;
+  reloading = false;
+  reloadTimer = 0;
+  if (heldGun) {
+    heldGun.rotation.x = 0.05;
+    heldGun.position.y = 0.85;
+  }
+  sfxReloadDone();
+  updateHud();
+}
 
+function spawnAmmoPickup(pos, amount = AMMO_PICKUP_AMOUNT) {
+  if (!scene) return;
+  const mesh = createAmmoPickup(amount);
+  mesh.position.set(pos.x, 0, pos.z);
+  scene.add(mesh);
+  ammoPickups.push({
+    mesh,
+    amount,
+    bob: Math.random() * Math.PI * 2,
+    life: 45,
+  });
+}
+
+function updateAmmoPickups(dt) {
+  const playerPos = getPlayerPos();
+  const magnet = mods.magnetRange || 0;
+  ammoPickups = ammoPickups.filter((p) => {
+    p.bob += dt * 2.4;
+    p.life -= dt;
+    p.mesh.position.y = 0.15 + Math.sin(p.bob) * 0.12;
+    p.mesh.rotation.y += dt * 1.4;
+    if (p.mesh.userData.glow?.material) {
+      p.mesh.userData.glow.material.opacity = 0.28 + Math.sin(p.bob * 2) * 0.12;
+    }
+    if (p.mesh.userData.crate?.material) {
+      p.mesh.userData.crate.material.emissiveIntensity = 0.45 + Math.sin(p.bob * 3) * 0.2;
+    }
+
+    let dx = playerPos.x - p.mesh.position.x;
+    let dz = playerPos.z - p.mesh.position.z;
+    let dist = Math.hypot(dx, dz);
+    if (magnet > 0 && dist < magnet && dist > 0.05) {
+      const pull = Math.min(14, 4 + magnet) * dt;
+      p.mesh.position.x += (dx / dist) * pull;
+      p.mesh.position.z += (dz / dist) * pull;
+      dx = playerPos.x - p.mesh.position.x;
+      dz = playerPos.z - p.mesh.position.z;
+      dist = Math.hypot(dx, dz);
+    }
+
+    if (dist < 1.35) {
+      const gained = Math.max(1, Math.round(p.amount * mods.pickupMult));
+      const room = MAX_RESERVE - state.reserve;
+      const add = Math.min(room, gained);
+      if (add > 0) {
+        state.reserve += add;
+        sfxAmmoPickup();
+        showPickupToast(`+${add} AMMO`);
+        updateHud();
+      } else {
+        showPickupToast("RESERVE FULL");
+      }
+      scene.remove(p.mesh);
+      return false;
+    }
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      return false;
+    }
+    return true;
+  });
+}
+
+function fireOneProjectile(spreadYaw = 0, spreadPitch = 0) {
   const mesh = createProjectileMesh();
-  const forward = new THREE.Vector3(-Math.sin(lookYaw), Math.sin(lookPitch), -Math.cos(lookYaw));
+  const scale = mods.bulletScale;
+  mesh.scale.setScalar(scale);
+
+  const forward = new THREE.Vector3(
+    -Math.sin(lookYaw + spreadYaw),
+    Math.sin(lookPitch + spreadPitch),
+    -Math.cos(lookYaw + spreadYaw),
+  );
   forward.normalize();
 
   const spawnPos = new THREE.Vector3();
@@ -651,11 +843,72 @@ function shoot() {
   scene.add(mesh);
   projectiles.push({
     mesh,
-    velocity: forward.multiplyScalar(PROJECTILE_SPEED),
+    velocity: forward.multiplyScalar(PROJECTILE_SPEED * mods.bulletSpeed),
     life: 2.4,
     trail: [],
     trailTimer: 0,
+    bounceLeft: mods.bounce | 0,
+    pierceLeft: mods.pierce | 0,
+    hitIds: new Set(),
+    radius: 0.22 * scale,
   });
+}
+
+function shoot() {
+  if (rewarding) return;
+  const now = performance.now() / 1000;
+  if (reloading) return;
+  if (now - lastShot < fireInterval()) return;
+  if (state.mag <= 0) {
+    if (now - lastEmptyClick > 0.22) {
+      lastEmptyClick = now;
+      sfxEmpty();
+      shakeAmp = Math.max(shakeAmp, 0.012);
+    }
+    if (state.reserve > 0) tryReload();
+    return;
+  }
+  lastShot = now;
+  state.mag--;
+  weaponRecoil = 1;
+  muzzleFlash = 1;
+  shakeAmp = Math.max(shakeAmp, 0.04);
+  sfxShoot();
+  crosshair.classList.remove("shoot");
+  void crosshair.offsetWidth;
+  crosshair.classList.add("shoot");
+  setTimeout(() => crosshair.classList.remove("shoot"), 80);
+  updateHud();
+
+  const spreadBase = 0.018 * mods.spreadMult;
+  const extras = mods.extraProjectiles | 0;
+  fireOneProjectile(
+    (Math.random() - 0.5) * spreadBase * 2,
+    (Math.random() - 0.5) * spreadBase,
+  );
+  for (let i = 0; i < extras; i++) {
+    const yaw = (Math.random() - 0.5) * (0.12 + spreadBase * 4);
+    const pitch = (Math.random() - 0.5) * 0.06;
+    fireOneProjectile(yaw, pitch);
+  }
+  if (Math.random() < mods.echoChance) {
+    setTimeout(() => {
+      if (!playing || rewarding || reloading || state.mag <= 0) return;
+      state.mag--;
+      updateHud();
+      fireOneProjectile((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.02);
+      weaponRecoil = 0.7;
+      muzzleFlash = 0.8;
+      sfxShoot();
+    }, 55);
+  }
+
+  if (state.mag <= 0 && state.reserve > 0) {
+    // soft prompt — auto-start reload after a beat if still empty
+    setTimeout(() => {
+      if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
+    }, 180);
+  }
 }
 
 function flashEnemyHit(enemy) {
@@ -681,17 +934,23 @@ function clearEnemyFlash(enemy) {
   });
 }
 
-function damageEnemy(enemy, hitPoint) {
-  enemy.userData.health--;
+function damageEnemy(enemy, hitPoint, dmg = 1) {
+  const crit = Math.random() < mods.critChance;
+  const dealt = Math.max(1, Math.round(dmg * mods.damage * (crit ? mods.critMult : 1)));
+  enemy.userData.health -= dealt;
+  if (mods.lifesteal > 0) {
+    state.health = Math.min(maxHealth(), state.health + dealt * mods.lifesteal * 4);
+  }
   const base = enemy.userData.sizeScale ?? 1;
-  enemy.scale.setScalar(base * 1.18);
+  enemy.scale.setScalar(base * (crit ? 1.28 : 1.18));
   setTimeout(() => {
     if (enemies.includes(enemy)) enemy.scale.setScalar(base);
   }, 90);
   flashEnemyHit(enemy);
   flashHitMarker();
-  shakeAmp = Math.max(shakeAmp, 0.02);
+  shakeAmp = Math.max(shakeAmp, crit ? 0.035 : 0.02);
   sfxHit();
+  if (crit) playTone({ freq: 880, dur: 0.05, type: "square", gain: 0.03 });
 
   if (enemy.userData.health <= 0) {
     createSplat(hitPoint);
@@ -708,6 +967,12 @@ function damageEnemy(enemy, hitPoint) {
         life: 0.35 + Math.random() * 0.2,
       });
     }
+    // Ammo drop chance
+    if (Math.random() < 0.42) {
+      spawnAmmoPickup(enemy.position.clone(), AMMO_PICKUP_AMOUNT);
+    } else if (Math.random() < 0.2) {
+      spawnAmmoPickup(enemy.position.clone(), Math.round(AMMO_PICKUP_AMOUNT * 0.55));
+    }
     scene.remove(enemy);
     enemies = enemies.filter((e) => e !== enemy);
     state.kills++;
@@ -718,7 +983,8 @@ function damageEnemy(enemy, hitPoint) {
 }
 
 function hurtPlayer(amount) {
-  state.health -= amount;
+  const taken = amount * mods.damageTaken;
+  state.health -= taken;
   state.lastHealth = Math.max(0, state.health);
   flashDamageVignette();
   shakeAmp = Math.max(shakeAmp, 0.09);
@@ -732,6 +998,7 @@ function hurtPlayer(amount) {
 
 function endGame() {
   playing = false;
+  hideRewardUI(false);
   controls.unlock();
   overlay.classList.remove("playing");
   overlay.classList.add("is-gameover");
@@ -770,10 +1037,13 @@ function startGame() {
   updateFollowCamera(0);
   showWaveToast(1);
   spawnTimer = 0.05;
-  createEnemy(-3, -10);
-  createEnemy(2.5, -12);
-  createEnemy(0.5, -8);
+  createEnemy(-4, -14);
+  createEnemy(3.5, -16);
+  createEnemy(0.5, -12);
   state.enemiesSpawned = 3;
+  // A couple floor ammo crates so pickups are visible early
+  spawnAmmoPickup(new THREE.Vector3(4, 0, -3), AMMO_PICKUP_AMOUNT);
+  spawnAmmoPickup(new THREE.Vector3(-5, 0, 2), Math.round(AMMO_PICKUP_AMOUNT * 0.7));
   controls.lock();
 }
 
@@ -864,10 +1134,10 @@ function readMoveInput() {
 }
 
 function updatePlayer(dt) {
-  if (!playerRoot) return;
+  if (!playerRoot || rewarding) return;
   const move = readMoveInput();
   const sprint = keys["ShiftLeft"] || keys["ShiftRight"] || padSprint();
-  const speed = sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED;
+  const speed = (sprint ? MOVE_SPEED * SPRINT_MULT : MOVE_SPEED) * mods.moveSpeed;
 
   if (move.lengthSq() > 0) {
     _forward.set(-Math.sin(lookYaw), 0, -Math.cos(lookYaw));
@@ -901,6 +1171,7 @@ function addTrailParticle(proj) {
 }
 
 function updateProjectiles(dt) {
+  const half = ARENA_SIZE - 0.5;
   projectiles = projectiles.filter((proj) => {
     proj.mesh.position.add(proj.velocity.clone().multiplyScalar(dt));
     proj.life -= dt;
@@ -919,15 +1190,40 @@ function updateProjectiles(dt) {
       }
       return true;
     });
-    let hit = false;
+
+    // Soft wall bounce
+    let bounced = false;
+    if (Math.abs(proj.mesh.position.x) > half && proj.bounceLeft > 0) {
+      proj.velocity.x *= -1;
+      proj.mesh.position.x = THREE.MathUtils.clamp(proj.mesh.position.x, -half, half);
+      proj.bounceLeft--;
+      bounced = true;
+    }
+    if (Math.abs(proj.mesh.position.z) > half && proj.bounceLeft > 0) {
+      proj.velocity.z *= -1;
+      proj.mesh.position.z = THREE.MathUtils.clamp(proj.mesh.position.z, -half, half);
+      proj.bounceLeft--;
+      bounced = true;
+    }
+    if (bounced) shakeAmp = Math.max(shakeAmp, 0.01);
+
+    let remove = false;
     for (const enemy of enemies) {
-      if (proj.mesh.position.distanceTo(enemyCenter(enemy)) < enemy.userData.hitRadius) {
-        damageEnemy(enemy, proj.mesh.position.clone());
-        hit = true;
-        break;
+      const id = enemy.userData.id;
+      if (proj.hitIds?.has(id)) continue;
+      const hitR = (enemy.userData.hitRadius || 0.8) + (proj.radius || 0.22) - 0.22;
+      if (proj.mesh.position.distanceTo(enemyCenter(enemy)) < hitR) {
+        damageEnemy(enemy, proj.mesh.position.clone(), 1);
+        proj.hitIds?.add(id);
+        if (proj.pierceLeft > 0) {
+          proj.pierceLeft--;
+        } else {
+          remove = true;
+          break;
+        }
       }
     }
-    if (hit || proj.life <= 0) {
+    if (remove || proj.life <= 0 || Math.abs(proj.mesh.position.x) > half + 2 || Math.abs(proj.mesh.position.z) > half + 2) {
       scene.remove(proj.mesh);
       proj.trail.forEach((t) => scene.remove(t.mesh));
       return false;
@@ -996,6 +1292,7 @@ function updateEnemies(dt, now) {
 }
 
 function updateSpawns(dt) {
+  if (rewarding) return;
   if (state.enemiesSpawned < state.enemiesToSpawn) {
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
@@ -1006,22 +1303,130 @@ function updateSpawns(dt) {
   }
   if (enemies.length === 0) {
     if (state.wave >= MAX_WAVES) {
-      // Survived all waves — still "flush" celebration via end, or keep going soft
       state.score += 500;
       endGame();
       return;
     }
-    state.wave++;
-    state.enemiesToSpawn = 4 + state.wave * 2;
-    state.enemiesSpawned = 0;
-    state.score += state.wave * 50;
-    // partial mag refill between waves
-    state.reserve = Math.min(START_RESERVE, state.reserve + 24);
-    tryReload();
-    spawnTimer = 1.1;
-    showWaveToast(state.wave);
-    updateHud();
+    openRewardUI();
   }
+}
+
+function applyPowerUp(pu) {
+  if (!pu) return;
+  mods.instantHeal = 0;
+  pu.apply(mods);
+  if (mods.instantHeal > 0) {
+    state.health = Math.min(maxHealth(), state.health + mods.instantHeal);
+    mods.instantHeal = 0;
+  }
+  // Cap health to new max after maxHpBonus
+  state.health = Math.min(maxHealth(), state.health);
+  // Mag bonus: top off into new capacity from reserve if possible
+  if (state.mag > magCapacity()) state.mag = magCapacity();
+  sfxPowerUp();
+}
+
+function renderRewardCards() {
+  rewardCards.innerHTML = "";
+  rewardOffer.forEach((pu, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `reward-card${pu.rarity === "rare" ? " rare" : ""}${pu._taken ? " taken" : ""}`;
+    btn.dataset.index = String(i);
+    btn.innerHTML = `
+      <span class="rc-rarity">${pu.rarity === "rare" ? "RARE" : "COMMON"}</span>
+      <span class="rc-check">✓</span>
+      <strong class="rc-name">${pu.name}</strong>
+      <p class="rc-desc">${pu.desc}</p>
+    `;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      claimRewardCard(i);
+    });
+    rewardCards.appendChild(btn);
+  });
+}
+
+function openRewardUI() {
+  if (rewarding) return;
+  rewarding = true;
+  cancelReload(false);
+  pendingWaveAdvance = {
+    nextWave: state.wave + 1,
+  };
+  rewardOffer = rollOffer(POWER_POOL, 3).map((p) => ({ ...p, _taken: false }));
+  renderRewardCards();
+  rewardOverlay.classList.remove("hidden");
+  document.body.classList.add("rewarding");
+  crosshair?.classList.add("hidden");
+  // Unlock for mouse clicks on cards
+  if (pointerLocked) controls.unlock();
+  pausePanel.classList.add("hidden");
+  sfxWave();
+  showPickupToast("CHOOSE 3 POWER-UPS");
+}
+
+function hideRewardUI(reLock = true) {
+  rewarding = false;
+  rewardOffer = [];
+  rewardOverlay?.classList.add("hidden");
+  document.body.classList.remove("rewarding");
+  crosshair?.classList.remove("hidden");
+  if (reLock && playing && state.health > 0 && mode === "play") {
+    try {
+      controls.lock();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
+function claimRewardCard(index) {
+  if (!rewarding) return;
+  const pu = rewardOffer[index];
+  if (!pu || pu._taken) return;
+  pu._taken = true;
+  applyPowerUp(pu);
+  showPickupToast(pu.name);
+  renderRewardCards();
+  updateHud();
+  if (rewardOffer.every((p) => p._taken)) {
+    finishRewardAndAdvance();
+  }
+}
+
+function confirmAllRewards() {
+  if (!rewarding) return;
+  const names = [];
+  rewardOffer.forEach((pu) => {
+    if (!pu._taken) {
+      pu._taken = true;
+      applyPowerUp(pu);
+      names.push(pu.name);
+    }
+  });
+  if (names.length) showPickupToast(names.join(" · "));
+  finishRewardAndAdvance();
+}
+
+function finishRewardAndAdvance() {
+  if (!pendingWaveAdvance) {
+    hideRewardUI(true);
+    return;
+  }
+  const next = pendingWaveAdvance.nextWave;
+  pendingWaveAdvance = null;
+  state.wave = next;
+  state.enemiesToSpawn = 4 + state.wave * 2;
+  state.enemiesSpawned = 0;
+  state.score += state.wave * 50;
+  state.reserve = Math.min(MAX_RESERVE, state.reserve + 24);
+  hideRewardUI(true);
+  spawnTimer = 0.85;
+  showWaveToast(state.wave);
+  // Start reload into possibly larger mag
+  if (state.mag < magCapacity() && state.reserve > 0) tryReload();
+  updateHud();
 }
 
 function updateSplats(dt) {
@@ -1103,10 +1508,18 @@ function pollGamepad(dt) {
   // Right stick look — axes 2/3 standard; some browsers use 3/4
   const rx = axisDZ(pad.axes[2] ?? 0);
   const ry = axisDZ(pad.axes[3] ?? pad.axes[4] ?? 0);
-  if (playing && pointerLocked && mode === "play") {
+  if (playing && pointerLocked && mode === "play" && !rewarding) {
     lookYaw -= rx * PAD_LOOK_SENS * dt;
     lookPitch -= ry * PAD_LOOK_SENS * dt;
     lookPitch = THREE.MathUtils.clamp(lookPitch, -0.85, 0.75);
+  }
+
+  // A (0) confirm rewards; also RT/A shoot when playing
+  if (rewarding) {
+    if (padBtnEdge("rewardConfirm", padBtn(pad, 0) || padBtn(pad, 1))) {
+      confirmAllRewards();
+    }
+    return;
   }
 
   // RT (7) or A/X (0) shoot
@@ -1122,7 +1535,7 @@ function pollGamepad(dt) {
   // Start (9) pause / unlock
   if (padBtnEdge("start", padBtn(pad, 9))) {
     if (playing && pointerLocked) controls.unlock();
-    else if (playing && !pointerLocked && state.health > 0) controls.lock();
+    else if (playing && !pointerLocked && state.health > 0 && !rewarding) controls.lock();
   }
 }
 
@@ -1135,14 +1548,27 @@ function animate() {
 
   pollGamepad(dt);
 
-  if (playing && pointerLocked && mode === "play") {
-    updatePlayer(dt);
-    updateViewmodel(dt);
-    updateProjectiles(dt);
-    updateFxBits(dt);
-    updateEnemies(dt, now / 1000);
-    updateSpawns(dt);
-    updateSplats(dt);
+  if (playing && mode === "play") {
+    if (rewarding) {
+      updateViewmodel(dt);
+      updateFollowCamera(dt);
+      updateAmmoPickups(dt);
+      updateSplats(dt);
+      updateFxBits(dt);
+    } else if (pointerLocked) {
+      updatePlayer(dt);
+      updateReload(dt);
+      updateViewmodel(dt);
+      updateProjectiles(dt);
+      updateFxBits(dt);
+      updateEnemies(dt, now / 1000);
+      updateSpawns(dt);
+      updateAmmoPickups(dt);
+      updateSplats(dt);
+    } else {
+      updateViewmodel(dt);
+      updateFollowCamera(dt);
+    }
     if (Math.floor(now / 100) % 2 === 0) drawMinimap(minimapCanvas, false);
   } else {
     updateViewmodel(dt);
@@ -1150,7 +1576,7 @@ function animate() {
     if (playing && mode === "play") updateFollowCamera(dt);
   }
 
-  if (shakeAmp > 0.0005 && playing && mode === "play") {
+  if (shakeAmp > 0.0005 && playing && mode === "play" && !rewarding) {
     const sx = (Math.random() - 0.5) * shakeAmp;
     const sy = (Math.random() - 0.5) * shakeAmp;
     camera.position.x += sx;
@@ -1160,13 +1586,23 @@ function animate() {
     camera.position.x -= sx;
     camera.position.y -= sy;
   } else {
-    shakeAmp = 0;
+    if (!rewarding) shakeAmp = 0;
     renderer.render(scene, camera);
   }
 }
 
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
+  if (rewarding) {
+    if (e.code === "Enter" || e.code === "Space") {
+      e.preventDefault();
+      confirmAllRewards();
+    }
+    if (e.code === "Digit1") claimRewardCard(0);
+    if (e.code === "Digit2") claimRewardCard(1);
+    if (e.code === "Digit3") claimRewardCard(2);
+    return;
+  }
   if (e.code === "KeyR" && playing && pointerLocked) tryReload();
   if (e.code === "KeyC" && playing) {
     e.preventDefault();
@@ -1181,6 +1617,7 @@ window.addEventListener("keyup", (e) => {
   keys[e.code] = false;
 });
 window.addEventListener("mousedown", (e) => {
+  if (rewarding) return;
   if (playing && pointerLocked && e.button === 0) shoot();
 });
 window.addEventListener("resize", () => {
@@ -1207,7 +1644,12 @@ menuBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   returnToMenu();
 });
+rewardConfirm?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  confirmAllRewards();
+});
 overlay.addEventListener("click", () => {
+  if (rewarding) return;
   if (playing && !pointerLocked && state.health > 0) {
     pausePanel.classList.add("hidden");
     controls.lock();
@@ -1235,3 +1677,21 @@ window.__poopFpsForceGameOver = () => {
 };
 
 window.__poopFpsCycleCamera = cycleCameraMode;
+window.__poopFpsForceReward = () => {
+  if (!playing) {
+    ensureAudio();
+    startGame();
+  }
+  enemies.forEach((e) => scene.remove(e));
+  enemies = [];
+  state.enemiesSpawned = state.enemiesToSpawn;
+  openRewardUI();
+};
+window.__poopFpsEmptyMag = () => {
+  state.mag = 0;
+  updateHud();
+};
+window.__poopFpsSpawnAmmo = () => {
+  const p = getPlayerPos();
+  spawnAmmoPickup(new THREE.Vector3(p.x + 1.5, 0, p.z + 1.2), AMMO_PICKUP_AMOUNT);
+};

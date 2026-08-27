@@ -173,15 +173,30 @@
         <div class="stat"><span class="label">Kills</span><strong id="kills" class="stat-kills">0</strong></div>
       </div>
       <div id="ammo-panel">
-        <strong id="ammo-text">12/96</strong>
-        <div class="ammo-bullets" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="ammo-main">
+          <strong id="ammo-text">12/96</strong>
+          <div class="ammo-bullets" aria-hidden="true"><span></span><span></span><span></span></div>
+        </div>
+        <div id="reload-bar" class="hidden" aria-hidden="true"><div id="reload-fill"></div></div>
+        <span id="reload-label" class="hidden">RELOADING</span>
       </div>
       <div id="minimap-wrap">
         <canvas id="minimap" width="140" height="140"></canvas>
       </div>
       <div id="wave-toast" class="hidden" aria-live="polite">WAVE <span id="wave-toast-num">1</span></div>
+      <div id="pickup-toast" class="hidden" aria-live="polite"></div>
       <div id="crosshair"><span></span><span></span></div>
       <div id="hit-marker" aria-hidden="true"></div>
+    </div>
+
+    <div id="reward-overlay" class="hidden" aria-modal="true" role="dialog" aria-labelledby="reward-title">
+      <div class="reward-panel">
+        <h2 id="reward-title">WAVE CLEARED</h2>
+        <p class="reward-sub">Pick your power-ups — stacking allowed</p>
+        <div id="reward-cards" class="reward-cards"></div>
+        <button type="button" id="reward-confirm">TAKE ALL <span class="reward-keys">Enter / Space / A</span></button>
+        <p class="reward-hint">Click cards or confirm · Gamepad A · Esc closes nothing (must pick)</p>
+      </div>
     </div>
 
     <!-- Game-over mockup chrome (shown with bathroom + board) -->

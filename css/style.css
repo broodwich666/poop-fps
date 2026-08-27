@@ -750,12 +750,36 @@ body.is-playing {
   right: 22px;
   bottom: 22px;
   display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.45rem 0.75rem;
-  background: rgba(20, 12, 6, 0.72);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 140px;
+  padding: 0.5rem 0.8rem 0.55rem;
+  background: rgba(20, 12, 6, 0.78);
   border: 2px solid #8b5a2b;
   border-radius: 10px;
+}
+
+#ammo-panel.reloading {
+  border-color: #ffb020;
+  box-shadow: 0 0 16px rgba(255, 160, 20, 0.45);
+}
+
+#ammo-panel.empty-mag {
+  border-color: #e07040;
+  animation: ammo-pulse 0.55s ease-in-out infinite;
+}
+
+@keyframes ammo-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 80, 40, 0); }
+  50% { box-shadow: 0 0 14px rgba(255, 100, 40, 0.55); }
+}
+
+.ammo-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
 }
 
 #ammo-panel strong,
@@ -765,6 +789,240 @@ body.is-playing {
   color: #f5e6c8;
   text-shadow: 0 2px 0 #2a1408;
   letter-spacing: 0.02em;
+}
+
+#reload-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  border: 1px solid rgba(255, 200, 80, 0.35);
+}
+
+#reload-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ffb020, #ffe066);
+  box-shadow: 0 0 8px rgba(255, 200, 60, 0.6);
+}
+
+#reload-label {
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  color: #ffe066;
+  text-align: center;
+}
+
+#pickup-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+  transform: translateX(-50%);
+  padding: 0.45rem 0.9rem;
+  background: rgba(20, 12, 6, 0.88);
+  border: 2px solid #c9a227;
+  border-radius: 8px;
+  color: #ffe9a8;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  text-shadow: 0 2px 0 #2a1408;
+  pointer-events: none;
+  z-index: 12;
+  opacity: 0;
+}
+
+#pickup-toast.show {
+  animation: pickup-pop 1.35s ease-out forwards;
+}
+
+@keyframes pickup-pop {
+  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+}
+
+#reward-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(80, 50, 20, 0.55), rgba(8, 6, 4, 0.82) 70%),
+    rgba(10, 8, 5, 0.55);
+  pointer-events: auto;
+  cursor: default;
+}
+
+#reward-overlay.hidden {
+  display: none;
+}
+
+.reward-panel {
+  width: min(920px, 94vw);
+  padding: 1.4rem 1.5rem 1.25rem;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(42, 28, 14, 0.96), rgba(22, 14, 8, 0.98));
+  border: 3px solid #8b5a2b;
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 220, 160, 0.12);
+}
+
+#reward-title {
+  margin: 0;
+  font-family: "Luckiest Guy", "Bungee", cursive;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  color: #ffe066;
+  letter-spacing: 0.04em;
+  text-shadow: 0 3px 0 #5a3208, 0 0 24px rgba(255, 180, 40, 0.35);
+}
+
+.reward-sub {
+  margin: 0.35rem 0 1.1rem;
+  color: #e8c48a;
+  font-weight: 800;
+  opacity: 0.9;
+}
+
+.reward-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
+}
+
+@media (max-width: 720px) {
+  .reward-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reward-card {
+  position: relative;
+  padding: 1rem 0.85rem 1.1rem;
+  text-align: left;
+  background: linear-gradient(165deg, #3a2818 0%, #24180e 100%);
+  border: 2px solid #a67c52;
+  border-radius: 12px;
+  color: #f5e6c8;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  font: inherit;
+}
+
+.reward-card:hover,
+.reward-card:focus-visible {
+  transform: translateY(-4px) scale(1.02);
+  border-color: #ffe066;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35), 0 0 0 2px rgba(255, 200, 60, 0.25);
+  outline: none;
+}
+
+.reward-card.taken {
+  opacity: 0.45;
+  pointer-events: none;
+  filter: grayscale(0.35);
+}
+
+.reward-card.rare {
+  border-color: #ff8a1a;
+  background: linear-gradient(165deg, #4a2a12 0%, #2a160a 100%);
+}
+
+.reward-card .rc-rarity {
+  display: inline-block;
+  margin-bottom: 0.45rem;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2a1408;
+  background: #c9a227;
+  border-radius: 4px;
+}
+
+.reward-card.rare .rc-rarity {
+  background: #ff8a1a;
+}
+
+.reward-card .rc-name {
+  display: block;
+  margin: 0 0 0.35rem;
+  font-family: "Bungee", "Luckiest Guy", cursive;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: #fff2cc;
+  text-shadow: 0 2px 0 #2a1408;
+}
+
+.reward-card .rc-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #dcc39a;
+  line-height: 1.35;
+}
+
+.reward-card .rc-check {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-weight: 900;
+  color: #7CFF6B;
+  opacity: 0;
+}
+
+.reward-card.taken .rc-check {
+  opacity: 1;
+}
+
+#reward-confirm {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 0.85rem 1.2rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffb020, #e07010);
+  color: #2a1408;
+  font-family: "Bungee", sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #8b4510;
+}
+
+#reward-confirm:hover,
+#reward-confirm:focus-visible {
+  filter: brightness(1.08);
+  outline: none;
+}
+
+#reward-confirm:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #8b4510;
+}
+
+.reward-keys {
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-family: "Nunito", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.reward-hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b8966a;
 }
 
 .ammo-bullets {
