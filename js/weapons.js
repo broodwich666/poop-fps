@@ -1,9 +1,8 @@
 /**
- * Usable weapon definitions — rifle (starter), shotgun, gatling.
- * Mag / fire feel / pellet count differ so they don't play the same.
+ * Usable weapon definitions — rifle, shotgun, gatling, grenade, rocket.
  */
 
-export const WEAPON_IDS = ["rifle", "shotgun", "gatling"];
+export const WEAPON_IDS = ["rifle", "shotgun", "gatling", "grenade", "rocket"];
 
 /** @type {Record<string, object>} */
 export const WEAPONS = {
@@ -12,6 +11,7 @@ export const WEAPONS = {
     name: "Poop Rifle",
     short: "RIFLE",
     desc: "Balanced starter. Steady mid-range splat.",
+    projectileType: "bullet",
     magSize: 12,
     reloadTime: 1.05,
     fireRate: 0.14,
@@ -32,6 +32,7 @@ export const WEAPONS = {
     name: "Chunk Blaster",
     short: "SHOTGUN",
     desc: "Spread pellets. Short range. Chunky damage.",
+    projectileType: "bullet",
     magSize: 6,
     reloadTime: 1.4,
     fireRate: 0.58,
@@ -52,6 +53,7 @@ export const WEAPONS = {
     name: "Turret Hose",
     short: "GATLING",
     desc: "High RoF stream. Wind-up. Ammo hungry.",
+    projectileType: "bullet",
     magSize: 60,
     reloadTime: 2.15,
     fireRate: 0.048,
@@ -66,6 +68,56 @@ export const WEAPONS = {
     recoil: 0.55,
     shake: 0.022,
     color: 0x8a5a28,
+  },
+  grenade: {
+    id: "grenade",
+    name: "Stink Nade",
+    short: "NADE",
+    desc: "Arcing stink bomb. Cook or tap-throw. Splash pop.",
+    projectileType: "grenade",
+    magSize: 3,
+    reloadTime: 1.65,
+    fireRate: 0.72,
+    pellets: 1,
+    spread: 0.02,
+    projectileSpeed: 14,
+    projectileLife: 4.5,
+    throwArc: 9.5,
+    fuseTime: 1.75,
+    splashRadius: 4.2,
+    splashDamage: 2.8,
+    selfDamageScale: 0.28,
+    damage: 0,
+    bulletScale: 1,
+    ammoPerShot: 1,
+    windup: 0,
+    recoil: 1.1,
+    shake: 0.06,
+    color: 0x6a4a18,
+  },
+  rocket: {
+    id: "rocket",
+    name: "U-Launch",
+    short: "ROCKET",
+    desc: "Fat rocket tube. Slow shot, big boom splash.",
+    projectileType: "rocket",
+    magSize: 4,
+    reloadTime: 2.35,
+    fireRate: 0.95,
+    pellets: 1,
+    spread: 0.012,
+    projectileSpeed: 22,
+    projectileLife: 3.2,
+    splashRadius: 5.5,
+    splashDamage: 4.2,
+    selfDamageScale: 0.38,
+    damage: 2.5,
+    bulletScale: 1,
+    ammoPerShot: 1,
+    windup: 0,
+    recoil: 1.85,
+    shake: 0.11,
+    color: 0x5a4020,
   },
 };
 

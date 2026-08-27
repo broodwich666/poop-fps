@@ -13,15 +13,21 @@ import {
 import {
   createAmmoPickup,
   createEnemyPoop,
+  createGrenadeProjectileMesh,
   createHeldGatling,
+  createHeldGrenade,
   createHeldGun,
+  createHeldRocket,
   createHeldShotgun,
   createPlayerPoop,
   createProjectileMesh,
+  createRocketProjectileMesh,
   createRifleViewmodel,
   createTrailParticle,
   createViewmodelGatling,
+  createViewmodelGrenade,
   createViewmodelGun,
+  createViewmodelRocket,
   createViewmodelShotgun,
 } from "./poop-models.js";
 import {
@@ -115,8 +121,9 @@ let loadoutFocus = { section: "gun", index: 0 };
 const loadout = createLoadoutState();
 let ownedWeapons = new Set(["rifle"]);
 let activeWeaponId = "rifle";
-const weaponMags = { rifle: 12, shotgun: 6, gatling: 60 };
+const weaponMags = { rifle: 12, shotgun: 6, gatling: 60, grenade: 3, rocket: 4 };
 let gatlingSpin = 0;
+let grenadeHoldT = 0;
 let shootHeld = false;
 let devOpen = false;
 let cheatGod = false;
@@ -355,8 +362,31 @@ function sfxShootFor(weaponId) {
     playTone({ freq: 520, dur: 0.025, type: "triangle", gain: 0.018, slide: -160 });
     return;
   }
+  if (weaponId === "grenade") {
+    playTone({ freq: 180, dur: 0.09, type: "triangle", gain: 0.05, slide: 60 });
+    playTone({ freq: 95, dur: 0.12, type: "sawtooth", gain: 0.04, slide: -30 });
+    return;
+  }
+  if (weaponId === "rocket") {
+    playTone({ freq: 120, dur: 0.14, type: "sawtooth", gain: 0.06, slide: 80 });
+    playTone({ freq: 60, dur: 0.18, type: "triangle", gain: 0.05, slide: -20 });
+    playTone({ freq: 280, dur: 0.08, type: "square", gain: 0.03, slide: -120 });
+    return;
+  }
   playTone({ freq: 160, dur: 0.07, type: "triangle", gain: 0.06, slide: -90 });
   playTone({ freq: 420, dur: 0.04, type: "square", gain: 0.025, slide: -200 });
+}
+
+function sfxExplosion(kind = "grenade") {
+  if (kind === "rocket") {
+    playTone({ freq: 70, dur: 0.22, type: "sawtooth", gain: 0.08, slide: -50 });
+    playTone({ freq: 140, dur: 0.16, type: "square", gain: 0.05, slide: -90 });
+    playTone({ freq: 40, dur: 0.28, type: "triangle", gain: 0.06, slide: -15 });
+    return;
+  }
+  playTone({ freq: 110, dur: 0.14, type: "sawtooth", gain: 0.065, slide: -40 });
+  playTone({ freq: 220, dur: 0.1, type: "triangle", gain: 0.045, slide: -80 });
+  playTone({ freq: 55, dur: 0.16, type: "square", gain: 0.04, slide: 20 });
 }
 
 function activeWeapon() {
@@ -711,6 +741,8 @@ function initScene() {
     rifle: createHeldGun(),
     shotgun: createHeldShotgun(),
     gatling: createHeldGatling(),
+    grenade: createHeldGrenade(),
+    rocket: createHeldRocket(),
   };
   Object.values(heldGunModels).forEach((g) => {
     g.position.set(heldGunBase.x, heldGunBase.y, heldGunBase.z);
@@ -727,6 +759,8 @@ function initScene() {
     rifle: createViewmodelGun(),
     shotgun: createViewmodelShotgun(),
     gatling: createViewmodelGatling(),
+    grenade: createViewmodelGrenade(),
+    rocket: createViewmodelRocket(),
   };
   swirlGun = viewmodelGuns.rifle;
   rifleGun = createRifleViewmodel();
@@ -823,6 +857,7 @@ function resetGame() {
   mods = createDefaultMods();
   demoHold = false;
   gatlingSpin = 0;
+  grenadeHoldT = 0;
   shootHeld = false;
   gamePaused = false;
   adsHeld = false;
@@ -1106,19 +1141,16 @@ function updateAmmoPickups(dt) {
   });
 }
 
-function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
-  const wpn = activeWeapon();
-  const mesh = createProjectileMesh();
-  const scale = mods.bulletScale * (opts.bulletScale || wpn.bulletScale || 1);
-  mesh.scale.setScalar(scale);
-
+function getAimForward(spreadYaw = 0, spreadPitch = 0) {
   const forward = new THREE.Vector3(
     -Math.sin(lookYaw + spreadYaw),
     Math.sin(lookPitch + spreadPitch),
     -Math.cos(lookYaw + spreadYaw),
   );
-  forward.normalize();
+  return forward.normalize();
+}
 
+function getMuzzleSpawnPos(forward) {
   const spawnPos = new THREE.Vector3();
   const cam = currentCamMode();
   const vm = viewmodelGuns[activeWeaponId];
@@ -1131,6 +1163,124 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
     spawnPos.y += EYE_HEIGHT;
     spawnPos.add(forward.clone().multiplyScalar(0.8));
   }
+  return spawnPos;
+}
+
+function explodeAt(pos, { radius = 4, splashDamage = 3, selfDamageScale = 0.3, kind = "grenade" } = {}) {
+  const blastPos = pos.clone();
+  blastPos.y = Math.max(0.12, blastPos.y);
+  createSplat(blastPos);
+  for (let i = 0; i < (kind === "rocket" ? 10 : 7); i++) {
+    const bit = createTrailParticle();
+    bit.position.copy(blastPos);
+    bit.position.x += (Math.random() - 0.5) * radius * 0.5;
+    bit.position.y += Math.random() * radius * 0.35;
+    bit.position.z += (Math.random() - 0.5) * radius * 0.5;
+    bit.scale.setScalar(kind === "rocket" ? 1.8 : 1.4);
+    scene.add(bit);
+    fxBits.push({
+      mesh: bit,
+      velocity: new THREE.Vector3(
+        (Math.random() - 0.5) * (kind === "rocket" ? 9 : 6),
+        2.5 + Math.random() * (kind === "rocket" ? 5 : 3.5),
+        (Math.random() - 0.5) * (kind === "rocket" ? 9 : 6),
+      ),
+      life: 0.45 + Math.random() * 0.25,
+    });
+  }
+  shakeAmp = Math.max(shakeAmp, kind === "rocket" ? 0.12 : 0.075);
+  sfxExplosion(kind);
+
+  const playerPos = getPlayerPos();
+  const playerDist = Math.hypot(playerPos.x - blastPos.x, playerPos.z - blastPos.z);
+  if (playerDist < radius) {
+    const falloff = 1 - playerDist / radius;
+    const base = kind === "rocket" ? 20 : 14;
+    hurtPlayer(base * selfDamageScale * falloff);
+  }
+
+  const victims = [...enemies];
+  victims.forEach((enemy) => {
+    const ec = enemyCenter(enemy);
+    const dist = ec.distanceTo(blastPos);
+    if (dist < radius) {
+      const falloff = 1 - dist / radius;
+      damageEnemy(enemy, blastPos.clone(), splashDamage * falloff);
+    }
+  });
+}
+
+function fireGrenade(spreadYaw = 0, spreadPitch = 0) {
+  const wpn = activeWeapon();
+  const forward = getAimForward(spreadYaw, spreadPitch);
+  const mesh = createGrenadeProjectileMesh();
+  mesh.scale.setScalar(mods.bulletScale);
+  const spawnPos = getMuzzleSpawnPos(forward);
+  mesh.position.copy(spawnPos);
+  scene.add(mesh);
+
+  const speed = wpn.projectileSpeed * mods.bulletSpeed;
+  const velocity = forward.clone().multiplyScalar(speed);
+  velocity.y += wpn.throwArc || 8;
+  const cooked = Math.min(grenadeHoldT, (wpn.fuseTime || 1.75) - 0.35);
+  grenadeHoldT = 0;
+
+  projectiles.push({
+    mesh,
+    velocity,
+    life: wpn.projectileLife,
+    kind: "grenade",
+    fuse: Math.max(0.35, (wpn.fuseTime || 1.75) - cooked * 0.9),
+    bounceLeft: 1,
+    gravity: true,
+    splashRadius: wpn.splashRadius,
+    splashDamage: wpn.splashDamage,
+    selfDamageScale: wpn.selfDamageScale,
+    trail: [],
+    trailTimer: 0,
+    hitIds: new Set(),
+    radius: 0.32,
+    damage: 0,
+  });
+}
+
+function fireRocket(spreadYaw = 0, spreadPitch = 0) {
+  const wpn = activeWeapon();
+  const forward = getAimForward(spreadYaw, spreadPitch);
+  const mesh = createRocketProjectileMesh();
+  mesh.scale.setScalar(mods.bulletScale);
+  const spawnPos = getMuzzleSpawnPos(forward);
+  mesh.position.copy(spawnPos);
+  mesh.lookAt(spawnPos.clone().add(forward));
+  scene.add(mesh);
+
+  const speed = wpn.projectileSpeed * mods.bulletSpeed;
+  projectiles.push({
+    mesh,
+    velocity: forward.clone().multiplyScalar(speed),
+    life: wpn.projectileLife,
+    kind: "rocket",
+    gravity: false,
+    splashRadius: wpn.splashRadius,
+    splashDamage: wpn.splashDamage,
+    selfDamageScale: wpn.selfDamageScale,
+    directDamage: wpn.damage,
+    trail: [],
+    trailTimer: 0,
+    hitIds: new Set(),
+    radius: 0.28,
+    damage: wpn.damage,
+  });
+}
+
+function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
+  const wpn = activeWeapon();
+  const mesh = createProjectileMesh();
+  const scale = mods.bulletScale * (opts.bulletScale || wpn.bulletScale || 1);
+  mesh.scale.setScalar(scale);
+
+  const forward = getAimForward(spreadYaw, spreadPitch);
+  const spawnPos = getMuzzleSpawnPos(forward);
   mesh.position.copy(spawnPos);
   scene.add(mesh);
   const speed = (opts.speed || wpn.projectileSpeed) * mods.bulletSpeed;
@@ -1139,6 +1289,7 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
     mesh,
     velocity: forward.multiplyScalar(speed),
     life,
+    kind: "bullet",
     trail: [],
     trailTimer: 0,
     bounceLeft: mods.bounce | 0,
@@ -1189,6 +1340,30 @@ function shoot() {
   crosshair.classList.add("shoot");
   setTimeout(() => crosshair.classList.remove("shoot"), 80);
   updateHud();
+
+  const pType = wpn.projectileType || "bullet";
+  if (pType === "grenade") {
+    const yaw = (Math.random() - 0.5) * wpn.spread * mods.spreadMult;
+    const pitch = (Math.random() - 0.5) * wpn.spread * 0.5;
+    fireGrenade(yaw, pitch);
+    if (!cheatInfiniteAmmo && state.mag <= 0 && state.reserve > 0) {
+      setTimeout(() => {
+        if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
+      }, 220);
+    }
+    return;
+  }
+  if (pType === "rocket") {
+    const yaw = (Math.random() - 0.5) * wpn.spread * mods.spreadMult;
+    const pitch = (Math.random() - 0.5) * wpn.spread * 0.5;
+    fireRocket(yaw, pitch);
+    if (!cheatInfiniteAmmo && state.mag <= 0 && state.reserve > 0) {
+      setTimeout(() => {
+        if (playing && !rewarding && state.mag <= 0 && state.reserve > 0 && !reloading) tryReload();
+      }, 280);
+    }
+    return;
+  }
 
   const spreadBase = wpn.spread * mods.spreadMult;
   const pellets = wpn.pellets || 1;
@@ -1524,15 +1699,42 @@ function addTrailParticle(proj) {
   }
 }
 
+function removeProjectile(proj) {
+  scene.remove(proj.mesh);
+  proj.trail.forEach((t) => scene.remove(t.mesh));
+}
+
+function detonateProjectile(proj) {
+  const wpnKind = proj.kind === "rocket" ? "rocket" : "grenade";
+  explodeAt(proj.mesh.position, {
+    radius: proj.splashRadius || 4,
+    splashDamage: proj.splashDamage || 2.5,
+    selfDamageScale: proj.selfDamageScale || 0.3,
+    kind: wpnKind,
+  });
+}
+
 function updateProjectiles(dt) {
   const half = ARENA_SIZE - 0.5;
   projectiles = projectiles.filter((proj) => {
+    if (proj.gravity) {
+      proj.velocity.y -= GRAVITY * dt * 0.88;
+    }
     proj.mesh.position.add(proj.velocity.clone().multiplyScalar(dt));
+
+    if (proj.kind === "grenade" || proj.kind === "rocket") {
+      proj.mesh.rotation.x += dt * 4.5;
+      proj.mesh.rotation.z += dt * 3.2;
+    }
+    if (proj.kind === "rocket") {
+      proj.mesh.lookAt(proj.mesh.position.clone().add(proj.velocity));
+    }
+
     proj.life -= dt;
     proj.trailTimer -= dt;
     if (proj.trailTimer <= 0) {
       addTrailParticle(proj);
-      proj.trailTimer = 0.022;
+      proj.trailTimer = proj.kind === "rocket" ? 0.035 : 0.04;
     }
     proj.trail = proj.trail.filter((t) => {
       t.life -= dt;
@@ -1545,28 +1747,59 @@ function updateProjectiles(dt) {
       return true;
     });
 
-    // Soft wall bounce
-    let bounced = false;
-    if (Math.abs(proj.mesh.position.x) > half && proj.bounceLeft > 0) {
-      proj.velocity.x *= -1;
-      proj.mesh.position.x = THREE.MathUtils.clamp(proj.mesh.position.x, -half, half);
-      proj.bounceLeft--;
-      bounced = true;
+    // Grenade ground bounce + fuse
+    if (proj.kind === "grenade") {
+      proj.fuse -= dt;
+      if (proj.mesh.position.y < 0.18) {
+        proj.mesh.position.y = 0.18;
+        if (proj.velocity.y < -0.5) {
+          proj.velocity.y *= -0.32;
+          proj.velocity.x *= 0.68;
+          proj.velocity.z *= 0.68;
+          if (proj.bounceLeft > 0) {
+            proj.bounceLeft--;
+            shakeAmp = Math.max(shakeAmp, 0.015);
+          } else {
+            proj.velocity.multiplyScalar(0.15);
+          }
+        }
+      }
+      if (proj.fuse <= 0) {
+        detonateProjectile(proj);
+        removeProjectile(proj);
+        return false;
+      }
     }
-    if (Math.abs(proj.mesh.position.z) > half && proj.bounceLeft > 0) {
-      proj.velocity.z *= -1;
-      proj.mesh.position.z = THREE.MathUtils.clamp(proj.mesh.position.z, -half, half);
-      proj.bounceLeft--;
-      bounced = true;
+
+    // Wall bounce for bullets only
+    if (!proj.kind || proj.kind === "bullet") {
+      let bounced = false;
+      if (Math.abs(proj.mesh.position.x) > half && proj.bounceLeft > 0) {
+        proj.velocity.x *= -1;
+        proj.mesh.position.x = THREE.MathUtils.clamp(proj.mesh.position.x, -half, half);
+        proj.bounceLeft--;
+        bounced = true;
+      }
+      if (Math.abs(proj.mesh.position.z) > half && proj.bounceLeft > 0) {
+        proj.velocity.z *= -1;
+        proj.mesh.position.z = THREE.MathUtils.clamp(proj.mesh.position.z, -half, half);
+        proj.bounceLeft--;
+        bounced = true;
+      }
+      if (bounced) shakeAmp = Math.max(shakeAmp, 0.01);
     }
-    if (bounced) shakeAmp = Math.max(shakeAmp, 0.01);
 
     let remove = false;
     for (const enemy of enemies) {
       const id = enemy.userData.id;
       if (proj.hitIds?.has(id)) continue;
-      const hitR = (enemy.userData.hitRadius || 0.8) + (proj.radius || 0.22) - 0.22;
+      const hitR = (enemy.userData.hitRadius || 0.8) + (proj.radius || 0.22) - 0.12;
       if (proj.mesh.position.distanceTo(enemyCenter(enemy)) < hitR) {
+        if (proj.kind === "grenade" || proj.kind === "rocket") {
+          detonateProjectile(proj);
+          removeProjectile(proj);
+          return false;
+        }
         damageEnemy(enemy, proj.mesh.position.clone(), proj.damage || 1);
         proj.hitIds?.add(id);
         if (proj.pierceLeft > 0) {
@@ -1577,9 +1810,21 @@ function updateProjectiles(dt) {
         }
       }
     }
-    if (remove || proj.life <= 0 || Math.abs(proj.mesh.position.x) > half + 2 || Math.abs(proj.mesh.position.z) > half + 2) {
-      scene.remove(proj.mesh);
-      proj.trail.forEach((t) => scene.remove(t.mesh));
+
+    if (proj.kind === "rocket" && !remove) {
+      const py = proj.mesh.position.y;
+      const outOfBounds = Math.abs(proj.mesh.position.x) > half + 0.5 || Math.abs(proj.mesh.position.z) > half + 0.5;
+      if (py < 0.15 || outOfBounds || proj.life <= 0) {
+        detonateProjectile(proj);
+        removeProjectile(proj);
+        return false;
+      }
+    }
+
+    if (remove || proj.life <= 0
+      || ((!proj.kind || proj.kind === "bullet")
+        && (Math.abs(proj.mesh.position.x) > half + 2 || Math.abs(proj.mesh.position.z) > half + 2))) {
+      removeProjectile(proj);
       return false;
     }
     return true;
@@ -1679,7 +1924,11 @@ function applyPowerUp(pu) {
     const already = ownedWeapons.has(id);
     if (already) {
       // Ammo top-up when re-rolling a weapon card
-      const add = id === "gatling" ? 18 : id === "shotgun" ? 8 : 12;
+      const add = id === "gatling" ? 18
+        : id === "shotgun" ? 8
+          : id === "grenade" ? 3
+            : id === "rocket" ? 4
+              : 12;
       state.reserve = Math.min(MAX_RESERVE + 40, state.reserve + add);
       weaponMags[id] = Math.min(magCapacity() + (id === activeWeaponId ? 0 : WEAPONS[id].magSize), (weaponMags[id] || 0) + Math.ceil(add / 3));
       showPickupToast(`${WEAPONS[id].name} AMMO +${add}`);
@@ -2224,6 +2473,17 @@ function animate() {
       updateSplats(dt);
       updateFxBits(dt);
     } else if (pointerLocked) {
+      const wpn = activeWeapon();
+      if (activeWeaponId === "grenade" && !reloading && (cheatInfiniteAmmo || state.mag > 0)) {
+        const primed = shootHeld || keys._mouseDown;
+        if (primed) {
+          grenadeHoldT = Math.min((wpn.fuseTime || 1.75) - 0.35, grenadeHoldT + dt);
+        } else {
+          grenadeHoldT = 0;
+        }
+      } else if (!shootHeld && !keys._mouseDown) {
+        grenadeHoldT = 0;
+      }
       updatePlayer(dt);
       updateReload(dt);
       updateWeaponSpin(dt);
@@ -2327,6 +2587,8 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Digit1" && playing && ownedWeapons.has("rifle")) equipWeapon("rifle");
   if (e.code === "Digit2" && playing && ownedWeapons.has("shotgun")) equipWeapon("shotgun");
   if (e.code === "Digit3" && playing && ownedWeapons.has("gatling")) equipWeapon("gatling");
+  if (e.code === "Digit4" && playing && ownedWeapons.has("grenade")) equipWeapon("grenade");
+  if (e.code === "Digit5" && playing && ownedWeapons.has("rocket")) equipWeapon("rocket");
   if (e.code === "KeyC" && playing) {
     e.preventDefault();
     cycleCameraMode();

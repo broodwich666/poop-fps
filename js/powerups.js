@@ -39,10 +39,16 @@ export function buildPowerUpPool() {
   // Weapon unlocks (appear in the 3-card offer; stacking = ammo top-up if owned)
   push("Chunk Blaster", "Unlock shotgun — spread pellets, short range", "rare", () => {}, { grantWeapon: "shotgun" });
   push("Turret Hose", "Unlock gatling — wind-up stream, ammo hungry", "rare", () => {}, { grantWeapon: "gatling" });
+  push("Stink Nade", "Unlock grenade — cook & throw, splash pop", "rare", () => {}, { grantWeapon: "grenade" });
+  push("U-Launch", "Unlock rocket launcher — slow boom, big splash", "rare", () => {}, { grantWeapon: "rocket" });
   push("Pump Action Pack", "Shotgun kit (or +2 shells if owned)", "rare", (m) => { m.magBonus += 1; }, { grantWeapon: "shotgun" });
   push("Belt Feed Bundle", "Gatling kit (or +12 belt if owned)", "rare", (m) => { m.magBonus += 2; }, { grantWeapon: "gatling" });
+  push("Pocket Pouch", "Grenade kit (or +2 nades if owned)", "rare", (m) => { m.magBonus += 1; }, { grantWeapon: "grenade" });
+  push("Tube Rack", "Rocket kit (or +2 rockets if owned)", "rare", (m) => { m.magBonus += 1; }, { grantWeapon: "rocket" });
   push("Double Barrel Dream", "Unlock shotgun + chunkier pellets", "rare", (m) => { m.bulletScale *= 1.12; }, { grantWeapon: "shotgun" });
   push("Spin-Up Spiral", "Unlock gatling + slight RoF", "rare", (m) => { m.fireRate *= 1.08; }, { grantWeapon: "gatling" });
+  push("Fuse Fumbler", "Unlock grenade + faster throw", "rare", (m) => { m.fireRate *= 1.06; }, { grantWeapon: "grenade" });
+  push("Boom Tube", "Unlock rocket + chunkier splash", "rare", (m) => { m.bulletScale *= 1.08; }, { grantWeapon: "rocket" });
 
   // Damage
   [0.08, 0.12, 0.16, 0.2, 0.25].forEach((v, i) => {

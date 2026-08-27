@@ -409,6 +409,180 @@ export function createViewmodelGatling() {
   return vm;
 }
 
+/** Fat spherical stink grenade projectile */
+export function createGrenadeProjectileMesh() {
+  const group = new THREE.Group();
+  const mat = createPoopMaterial(0x5a3810);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 14), mat);
+  core.scale.set(1.08, 0.95, 1.05);
+  core.castShadow = true;
+  group.add(core);
+
+  const seam = new THREE.Mesh(
+    new THREE.TorusGeometry(0.28, 0.04, 10, 20),
+    createPoopMaterial(0x3d2208)
+  );
+  seam.rotation.x = Math.PI / 2;
+  seam.position.y = 0.04;
+  group.add(seam);
+
+  const pin = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025, 0.025, 0.14, 6),
+    new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: 0.6, roughness: 0.35 })
+  );
+  pin.position.set(0.22, 0.28, 0);
+  pin.rotation.z = 0.6;
+  group.add(pin);
+
+  return group;
+}
+
+/** Slow fat rocket projectile */
+export function createRocketProjectileMesh() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a3828, roughness: 0.55, metalness: 0.2 });
+  const warheadMat = createPoopMaterial(0x7a4a18);
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.55, 10), bodyMat);
+  body.rotation.x = Math.PI / 2;
+  body.position.z = -0.1;
+  body.castShadow = true;
+  group.add(body);
+
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), warheadMat);
+  nose.scale.set(1, 1, 1.35);
+  nose.position.z = -0.42;
+  nose.castShadow = true;
+  group.add(nose);
+
+  const finL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.12), bodyMat);
+  finL.position.set(-0.12, 0, 0.12);
+  group.add(finL);
+  const finR = finL.clone();
+  finR.position.x = 0.12;
+  group.add(finR);
+
+  const exhaust = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff8833, transparent: true, opacity: 0.55 })
+  );
+  exhaust.position.z = 0.28;
+  group.add(exhaust);
+
+  group.rotation.x = Math.PI / 2;
+  return group;
+}
+
+/** World-space grenade launcher arm */
+export function createHeldGrenade() {
+  const gun = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3214, roughness: 0.7, metalness: 0.08 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0x3a3e42, roughness: 0.4, metalness: 0.6 });
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.2, 0.12), wood);
+  grip.position.set(0, -0.14, 0.1);
+  grip.rotation.x = 0.35;
+  gun.add(grip);
+
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.38), steel);
+  arm.position.set(0, 0.02, -0.12);
+  gun.add(arm);
+
+  const cup = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), steel);
+  cup.scale.set(1.1, 0.75, 1.1);
+  cup.position.set(0, 0.06, -0.38);
+  gun.add(cup);
+
+  const nade = createGrenadeProjectileMesh();
+  nade.scale.setScalar(0.55);
+  nade.position.set(0, 0.06, -0.42);
+  gun.add(nade);
+
+  const muzzle = new THREE.Mesh(
+    new THREE.SphereGeometry(0.06, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff9944, transparent: true, opacity: 0, depthWrite: false })
+  );
+  muzzle.position.set(0, 0.06, -0.52);
+  gun.add(muzzle);
+
+  gun.userData.muzzle = muzzle;
+  gun.userData.weaponId = "grenade";
+  return gun;
+}
+
+/** World-space rocket tube */
+export function createHeldRocket() {
+  const gun = new THREE.Group();
+  const tube = new THREE.MeshStandardMaterial({ color: 0x2e3438, roughness: 0.45, metalness: 0.55 });
+  const band = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.4, metalness: 0.5 });
+
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.88, 12), tube);
+  barrel.rotation.x = Math.PI / 2;
+  barrel.position.set(0, 0.04, -0.42);
+  barrel.castShadow = true;
+  gun.add(barrel);
+
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.018, 8, 16), band);
+  ring.rotation.y = Math.PI / 2;
+  ring.position.set(0, 0.04, -0.12);
+  gun.add(ring);
+
+  const sight = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.06, 0.14), band);
+  sight.position.set(0, 0.14, -0.35);
+  gun.add(sight);
+
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.1), tube);
+  grip.position.set(0, -0.12, 0.08);
+  grip.rotation.x = 0.3;
+  gun.add(grip);
+
+  const rocketTip = createRocketProjectileMesh();
+  rocketTip.scale.setScalar(0.42);
+  rocketTip.position.set(0, 0.04, -0.72);
+  gun.add(rocketTip);
+
+  const muzzle = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff6622, transparent: true, opacity: 0, depthWrite: false })
+  );
+  muzzle.position.set(0, 0.04, -0.88);
+  gun.add(muzzle);
+
+  gun.userData.muzzle = muzzle;
+  gun.userData.weaponId = "rocket";
+  return gun;
+}
+
+export function createViewmodelGrenade() {
+  const vm = new THREE.Group();
+  const held = createHeldGrenade();
+  held.scale.setScalar(1.3);
+  held.rotation.set(0.1, 0.2, 0.05);
+  vm.add(held);
+  vm.position.set(0.38, -0.38, -0.52);
+  vm.rotation.set(0.1, 0.18, 0.05);
+  vm.userData.muzzle = held.userData.muzzle;
+  vm.userData.basePos = vm.position.clone();
+  vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
+  vm.userData.weaponId = "grenade";
+  return vm;
+}
+
+export function createViewmodelRocket() {
+  const vm = new THREE.Group();
+  const held = createHeldRocket();
+  held.scale.setScalar(1.28);
+  held.rotation.set(0.08, 0.16, 0.04);
+  vm.add(held);
+  vm.position.set(0.4, -0.36, -0.5);
+  vm.rotation.set(0.08, 0.16, 0.04);
+  vm.userData.muzzle = held.userData.muzzle;
+  vm.userData.basePos = vm.position.clone();
+  vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
+  vm.userData.weaponId = "rocket";
+  return vm;
+}
+
 /** Dark tactical rifle for game-over mockup viewmodel */
 export function createRifleViewmodel() {
   const vm = new THREE.Group();
