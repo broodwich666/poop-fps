@@ -194,8 +194,8 @@ export function createRifleViewmodel() {
   sight.position.set(0, 0.16, -0.25);
   vm.add(sight);
 
-  vm.position.set(0.42, -0.38, -0.55);
-  vm.rotation.set(0.08, 0.15, 0.05);
+  vm.position.set(0.48, -0.42, -0.62);
+  vm.rotation.set(0.12, 0.22, 0.08);
   vm.userData.basePos = vm.position.clone();
   vm.userData.baseRot = { x: vm.rotation.x, y: vm.rotation.y, z: vm.rotation.z };
   return vm;

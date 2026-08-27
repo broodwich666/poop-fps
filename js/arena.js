@@ -169,19 +169,19 @@ function makeBannerTexture(text) {
   canvas.width = 512;
   canvas.height = 640;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#5a3010";
-  ctx.fillRect(0, 0, 512, 640);
   ctx.fillStyle = "#6b3a14";
+  ctx.fillRect(0, 0, 512, 640);
+  ctx.fillStyle = "#5a3010";
   for (let y = 0; y < 640; y += 18) ctx.fillRect(0, y, 512, 2);
   ctx.strokeStyle = "#c9a227";
   ctx.lineWidth = 10;
   ctx.strokeRect(16, 16, 480, 608);
   ctx.fillStyle = "#e8c48a";
-  ctx.font = "bold 64px Arial Black, Arial, sans-serif";
+  ctx.font = "bold 72px Arial Black, Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const lines = text.split("\n");
-  lines.forEach((line, i) => ctx.fillText(line, 256, 220 + i * 80));
+  lines.forEach((line, i) => ctx.fillText(line, 256, 200 + i * 90));
   drawPoopIcon(ctx, 256, 420, 70);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -455,10 +455,10 @@ export function buildMenuCompound(scene) {
   });
 
   const graffiti = new THREE.Mesh(
-    new THREE.PlaneGeometry(14, 3.2),
+    new THREE.PlaneGeometry(16, 3.8),
     new THREE.MeshBasicMaterial({ map: makeGraffitiTexture(), transparent: true, depthWrite: false })
   );
-  graffiti.position.set(-size + 0.4, 5.2, -4);
+  graffiti.position.set(-size + 0.42, 5.5, 2);
   graffiti.rotation.y = Math.PI / 2;
   root.add(graffiti);
 
@@ -486,7 +486,7 @@ export function buildMenuCompound(scene) {
     [-14, 10, 6, -4, 0, 2],
     [0, 12, -20, 0, 0, -8],
   ].forEach(([x, y, z, tx, ty, tz]) => {
-    const spot = new THREE.SpotLight(0xffb060, 3.2, 55, 0.45, 0.45, 1.2);
+    const spot = new THREE.SpotLight(0xffb060, 4.8, 60, 0.5, 0.4, 1.1);
     spot.position.set(x, y, z);
     spot.castShadow = true;
     const target = new THREE.Object3D();
@@ -562,9 +562,9 @@ export function buildBathroomArena(scene) {
 
   const props = [];
   for (let i = 0; i < 8; i++) {
-    const p = createEnemyPoop(0.7 + Math.random() * 0.5);
-    p.position.set((Math.random() - 0.5) * 14, 0, -1 + Math.random() * 6);
-    p.lookAt(0, 0.5, 4);
+    const p = createEnemyPoop(0.55 + Math.random() * 0.35);
+    p.position.set((Math.random() - 0.5) * 12, 0, -2 + Math.random() * 5);
+    p.lookAt(0.5, 0.4, 6);
     p.userData.wobble = Math.random() * 8;
     root.add(p);
     props.push(p);
@@ -583,19 +583,23 @@ export function buildBathroomArena(scene) {
 
 export function applyMenuLighting(scene) {
   clearLights(scene);
-  scene.background = new THREE.Color(0x2a1810);
-  scene.fog = new THREE.FogExp2(0x1a1008, 0.018);
-  const hemi = new THREE.HemisphereLight(0xff8a40, 0x1a1208, 0.45);
+  scene.background = new THREE.Color(0x4a2a18);
+  scene.fog = new THREE.FogExp2(0x2a1810, 0.012);
+  const hemi = new THREE.HemisphereLight(0xff9040, 0x1a1008, 0.75);
   hemi.name = "dyn-light";
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xff7030, 0.55);
+  const sun = new THREE.DirectionalLight(0xff8028, 0.95);
   sun.name = "dyn-light";
-  sun.position.set(-20, 18, 8);
+  sun.position.set(-18, 22, 10);
   sun.castShadow = true;
   scene.add(sun);
-  const fill = new THREE.AmbientLight(0x3a2818, 0.35);
+  const fill = new THREE.AmbientLight(0x5a3820, 0.55);
   fill.name = "dyn-light";
   scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xff6030, 0.4);
+  rim.name = "dyn-light";
+  rim.position.set(10, 8, -20);
+  scene.add(rim);
 }
 
 export function applyGameplayLighting(scene) {
@@ -626,18 +630,22 @@ export function applyGameplayLighting(scene) {
 
 export function applyBathroomLighting(scene) {
   clearLights(scene);
-  scene.background = new THREE.Color(0x121410);
-  scene.fog = new THREE.Fog(0x0c0e0a, 8, 28);
-  const amb = new THREE.AmbientLight(0x405040, 0.35);
+  scene.background = new THREE.Color(0x151810);
+  scene.fog = new THREE.Fog(0x0e120e, 10, 32);
+  const amb = new THREE.AmbientLight(0x506050, 0.55);
   amb.name = "dyn-light";
   scene.add(amb);
-  const hemi = new THREE.HemisphereLight(0x6a7860, 0x1a1810, 0.4);
+  const hemi = new THREE.HemisphereLight(0x7a8870, 0x1a1810, 0.55);
   hemi.name = "dyn-light";
   scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xffe8c0, 0.55);
+  const key = new THREE.DirectionalLight(0xffe8c0, 0.85);
   key.name = "dyn-light";
   key.position.set(4, 10, 6);
   scene.add(key);
+  const fill = new THREE.PointLight(0xffcc88, 1.1, 18, 1.5);
+  fill.name = "dyn-light";
+  fill.position.set(0, 5, 2);
+  scene.add(fill);
 }
 
 function clearLights(scene) {

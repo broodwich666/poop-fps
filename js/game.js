@@ -212,13 +212,13 @@ function showBathroomWorld() {
 }
 
 function poseMenuCamera() {
-  camera.position.set(0.2, 2.4, 11);
-  camera.lookAt(0, 2.2, -8);
+  camera.position.set(2.5, 3.2, 14);
+  camera.lookAt(-2, 3.5, -6);
 }
 
 function poseGameOverCamera() {
-  camera.position.set(0.3, 1.55, 5.5);
-  camera.lookAt(0.1, 1.2, -4);
+  camera.position.set(0.55, 1.65, 6.2);
+  camera.lookAt(-0.4, 1.15, -5);
   camera.rotation.z = 0;
 }
 
@@ -593,7 +593,12 @@ function startGame() {
   pausePanel.classList.add("hidden");
   hud.classList.remove("hidden");
   showWaveToast(1);
-  spawnTimer = 0.35;
+  spawnTimer = 0.05;
+  // Seed a few enemies in view so the first second matches the mockup beat
+  createEnemy(-3, -10);
+  createEnemy(2.5, -12);
+  createEnemy(0.5, -8);
+  state.enemiesSpawned = 3;
   controls.lock();
 }
 
