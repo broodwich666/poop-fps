@@ -1239,6 +1239,9 @@ function startGame() {
 
 function returnToMenu() {
   playing = false;
+  hideRewardUI(false);
+  loadoutOpen = false;
+  loadoutPanel?.classList.add("hidden");
   clearCombat();
   resetGame();
   showMenuWorld();
@@ -1247,6 +1250,7 @@ function returnToMenu() {
   gameOverPanel.classList.add("hidden");
   pausePanel.classList.add("hidden");
   menu.classList.remove("hidden");
+  updateLoadoutSummary();
 }
 
 function updateViewmodel(dt) {
