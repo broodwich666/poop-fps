@@ -68,6 +68,14 @@ import {
   spawnTurretDeployVfx,
   updateVfx,
 } from "./vfx.js";
+import {
+  clearStains,
+  initStains,
+  leaveGroundStain,
+  leaveProjectileStain,
+  paintExplosionStain,
+  tryWallStain,
+} from "./stains.js";
 
 const canvas = document.getElementById("game-canvas");
 const overlay = document.getElementById("overlay");
@@ -798,13 +806,16 @@ function poseGameOverCamera() {
 }
 
 function createEnemy(x, z) {
-  const sizeScale = 1.05 + Math.random() * 0.55;
+  const isElite = state.wave >= 2 && Math.random() < 0.1;
+  const sizeScale = isElite ? 1.45 + Math.random() * 0.35 : 1.05 + Math.random() * 0.55;
+  const baseHp = 2 + Math.floor(state.wave / 2);
   const group = createEnemyPoop(sizeScale);
   group.position.set(x, 0, z);
   group.userData = {
     ...group.userData,
     id: ++enemyIdCounter,
-    health: 2 + Math.floor(state.wave / 2),
+    health: Math.ceil(baseHp * (isElite ? 2.5 : 1)),
+    elite: isElite,
     speed: ENEMY_SPEED + state.wave * 0.22 + Math.random() * 0.4,
     lastAttack: 0,
     wobble: Math.random() * Math.PI * 2,
@@ -837,6 +848,7 @@ function initScene() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   configureMockupRenderer(renderer);
   initVfx(scene, bloomFlash);
+  initStains(scene);
 
   // Player avatar + held guns in world space
   playerRoot = new THREE.Group();
@@ -978,6 +990,7 @@ function cancelReload(playSound = false) {
 
 function resetGame() {
   clearCombat();
+  clearStains();
   hideRewardUI(false);
   mods = createDefaultMods();
   demoHold = false;
@@ -1297,6 +1310,7 @@ function explodeAt(pos, { radius = 4, splashDamage = 3, selfDamageScale = 0.3, k
   const splashD = splashDamage * (mods.splashDamageMult || 1);
   const blastPos = pos.clone();
   blastPos.y = Math.max(0.12, blastPos.y);
+  paintExplosionStain(blastPos, splashR);
   createSplat(blastPos);
   const vfxKind = kind === "rocket" ? "rocket" : kind === "mine" ? "mine" : "grenade";
   spawnExplosionVfx(vfxKind, blastPos, splashR, {
@@ -1307,19 +1321,23 @@ function explodeAt(pos, { radius = 4, splashDamage = 3, selfDamageScale = 0.3, k
   const playerPos = getPlayerPos();
   const playerDist = Math.hypot(playerPos.x - blastPos.x, playerPos.z - blastPos.z);
   if (playerDist < splashR) {
-    const falloff = 1 - playerDist / splashR;
-    const base = kind === "rocket" ? 20 : 14;
-    hurtPlayer(base * selfDamageScale * falloff);
+    const inner = splashR * 0.45;
+    const falloff = playerDist <= inner ? 1 : 1 - (playerDist - inner) / (splashR - inner);
+    const base = kind === "rocket" ? 14 : 10;
+    hurtPlayer(base * selfDamageScale * Math.max(0.2, falloff));
   }
 
   const victims = [...enemies];
+  const innerR = splashR * 0.5;
   victims.forEach((enemy) => {
     const ec = enemyCenter(enemy);
-    const dist = ec.distanceTo(blastPos);
-    if (dist < splashR) {
-      const falloff = 1 - dist / splashR;
-      damageEnemy(enemy, blastPos.clone(), splashD * falloff);
-    }
+    const dist = Math.hypot(ec.x - blastPos.x, ec.z - blastPos.z);
+    if (dist >= splashR) return;
+    let falloff = dist <= innerR ? 1 : 1 - (dist - innerR) / (splashR - innerR);
+    falloff = Math.max(0.4, falloff);
+    let dmg = splashD * falloff;
+    if (enemy.userData.elite && dist > innerR * 0.9) dmg *= 0.55;
+    damageEnemy(enemy, blastPos.clone(), dmg);
   });
 }
 
@@ -1497,8 +1515,9 @@ function fireGrenade(spreadYaw = 0, spreadPitch = 0) {
     life: wpn.projectileLife,
     kind: "grenade",
     fuse: Math.max(0.35, ((wpn.fuseTime || 1.75) - cooked * 0.9) * (mods.fuseMult || 1)),
-    bounceLeft: 1,
+    bounceLeft: 3,
     gravity: true,
+    stainTimer: 0,
     splashRadius: wpn.splashRadius,
     splashDamage: wpn.splashDamage,
     selfDamageScale: wpn.selfDamageScale,
@@ -1533,6 +1552,7 @@ function fireRocket(spreadYaw = 0, spreadPitch = 0) {
     directDamage: wpn.damage,
     trail: [],
     trailTimer: 0,
+    stainTimer: 0,
     hitIds: new Set(),
     radius: 0.28,
     damage: wpn.damage,
@@ -1678,6 +1698,7 @@ function fireOneProjectile(spreadYaw = 0, spreadPitch = 0, opts = {}) {
     arch,
     trail: [],
     trailTimer: 0,
+    stainTimer: 0,
     bounceLeft: mods.bounce | 0,
     pierceLeft: mods.pierce | 0,
     hitIds: new Set(),
@@ -2136,20 +2157,35 @@ function updateProjectiles(dt) {
       spawnBoomerangSpark(proj.mesh.position);
     }
 
+    proj.stainTimer = (proj.stainTimer ?? 0) - dt;
+    const leavesStain = proj.kind === "grenade" || proj.kind === "rocket" || proj.kind === "mine"
+      || proj.kind === "puddle" || !proj.kind || proj.kind === "bullet";
+    if (leavesStain && proj.stainTimer <= 0) {
+      leaveProjectileStain(proj.mesh.position, proj.kind || "bullet", proj.arch);
+      tryWallStain(proj.mesh.position, half, proj.kind || "bullet");
+      const stainInterval = proj.kind === "rocket" ? 0.06
+        : proj.kind === "grenade" ? 0.07
+          : proj.arch === "shotgun" ? 0.04
+            : proj.kind === "bullet" ? 0.14
+              : 0.1;
+      proj.stainTimer = stainInterval;
+    }
+
     // Grenade ground bounce + fuse
     if (proj.kind === "grenade") {
       proj.fuse -= dt;
       if (proj.mesh.position.y < 0.18) {
         proj.mesh.position.y = 0.18;
         if (proj.velocity.y < -0.5) {
-          proj.velocity.y *= -0.32;
-          proj.velocity.x *= 0.68;
-          proj.velocity.z *= 0.68;
+          proj.velocity.y *= -0.42;
+          proj.velocity.x *= 0.72;
+          proj.velocity.z *= 0.72;
           if (proj.bounceLeft > 0) {
             proj.bounceLeft--;
-            shakeAmp = Math.max(shakeAmp, 0.015);
+            shakeAmp = Math.max(shakeAmp, 0.025);
+            leaveGroundStain(proj.mesh.position, 0.85);
           } else {
-            proj.velocity.multiplyScalar(0.15);
+            proj.velocity.multiplyScalar(0.2);
           }
         }
       }
@@ -2202,7 +2238,11 @@ function updateProjectiles(dt) {
         proj.bounceLeft--;
         bounced = true;
       }
-      if (bounced) shakeAmp = Math.max(shakeAmp, 0.01);
+      if (bounced) {
+        shakeAmp = Math.max(shakeAmp, 0.01);
+        leaveProjectileStain(proj.mesh.position, "bullet", proj.arch);
+        tryWallStain(proj.mesh.position, half, "bullet");
+      }
     }
 
     let remove = false;
@@ -2223,6 +2263,7 @@ function updateProjectiles(dt) {
           proj.pierceLeft--;
         } else {
           remove = true;
+          leaveProjectileStain(proj.mesh.position, "bullet", proj.arch);
           break;
         }
       }
