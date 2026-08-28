@@ -4,45 +4,286 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Poop Shooter FPS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Luckiest+Guy&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <svg class="svg-defs" aria-hidden="true">
+    <symbol id="poop-swirl" viewBox="0 0 64 64">
+      <ellipse cx="32" cy="58" rx="16" ry="4" fill="rgba(0,0,0,0.28)" />
+      <path d="M32 8c8 6 14 12 14 20 8 2 14 9 12 17-2 9-12 15-26 15S8 54 6 45c-2-8 4-15 12-17 0-8 6-14 14-20z" fill="#A85A22" />
+      <path d="M32 8c6 5 11 10 12 17 2 0 4-1 5-1-1-7-8-13-17-16z" fill="#C8783A" />
+      <path d="M20 30c10-3 22 1 24 12" fill="none" stroke="#6b3414" stroke-width="3.2" stroke-linecap="round" />
+      <ellipse cx="24" cy="24" rx="5" ry="3" fill="#E8C48A" opacity="0.35" />
+    </symbol>
+    <symbol id="poop-smile" viewBox="0 0 64 64">
+      <ellipse cx="32" cy="58" rx="16" ry="4" fill="rgba(0,0,0,0.28)" />
+      <path d="M32 7c7 6 13 11 15 19 7 1 13 8 11 16-2 9-11 16-26 16S8 51 6 42c-2-8 4-15 11-16 2-8 8-13 15-19z" fill="#8B4A1C" />
+      <path d="M32 7c5 5 10 9 12 16 1-1 2-2 3-2-2-6-8-11-15-14z" fill="#A65C28" />
+      <circle cx="23" cy="36" r="6.2" fill="#fff" />
+      <circle cx="41" cy="36" r="6.2" fill="#fff" />
+      <circle cx="24.2" cy="37.2" r="3.1" fill="#1a0c04" />
+      <circle cx="42.2" cy="37.2" r="3.1" fill="#1a0c04" />
+      <path d="M24 47q8 7 16 0" stroke="#3d220f" stroke-width="2.4" fill="none" stroke-linecap="round" />
+    </symbol>
+    <symbol id="poop-smirk" viewBox="0 0 64 64">
+      <ellipse cx="32" cy="58" rx="16" ry="4" fill="rgba(0,0,0,0.28)" />
+      <path d="M32 7c7 6 13 11 15 19 7 1 13 8 11 16-2 9-11 16-26 16S8 51 6 42c-2-8 4-15 11-16 2-8 8-13 15-19z" fill="#7A3F16" />
+      <path d="M32 7c5 5 10 9 12 16 1-1 2-2 3-2-2-6-8-11-15-14z" fill="#9A5424" />
+      <circle cx="23" cy="35" r="6.4" fill="#fff" />
+      <circle cx="41" cy="35" r="6.4" fill="#fff" />
+      <circle cx="25" cy="36.4" r="3.2" fill="#1a0c04" />
+      <circle cx="43" cy="36.4" r="3.2" fill="#1a0c04" />
+      <path d="M20 27l8 4" stroke="#2a1408" stroke-width="3.2" stroke-linecap="round" />
+      <path d="M44 27l-8 4" stroke="#2a1408" stroke-width="3.2" stroke-linecap="round" />
+      <path d="M26 46q8 3 14-2" stroke="#3d220f" stroke-width="2.4" fill="none" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-heart" viewBox="0 0 24 24">
+      <path d="M12 20s-7.2-4.4-9.4-8.2C.6 8.6 2.2 5 5.6 5c2 0 3.3 1.1 4.4 2.6C11.1 6.1 12.4 5 14.4 5c3.4 0 5 3.6 3 6.8C19.2 15.6 12 20 12 20z" fill="#e53935" stroke="#7a1010" stroke-width="1.2" />
+    </symbol>
+    <symbol id="icon-mouse" viewBox="0 0 32 40">
+      <rect x="6" y="2" width="20" height="36" rx="10" fill="#1a0c04" stroke="#f0d7b0" stroke-width="2" />
+      <path d="M16 2v14" stroke="#f0d7b0" stroke-width="2" />
+      <path d="M6 16h20" stroke="#f0d7b0" stroke-width="2" />
+    </symbol>
+    <symbol id="icon-mouse-click" viewBox="0 0 32 40">
+      <rect x="6" y="2" width="20" height="36" rx="10" fill="#1a0c04" stroke="#f0d7b0" stroke-width="2" />
+      <path d="M16 2v14" stroke="#f0d7b0" stroke-width="2" />
+      <path d="M6 16h20" stroke="#f0d7b0" stroke-width="2" />
+      <path d="M6 2h10v14H6z" fill="#ff8a1a" opacity="0.95" />
+      <path d="M2 10l-4-2M2 16l-5 0M2 22l-4 2" stroke="#ff8a1a" stroke-width="2" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-target" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="#e8c48a" stroke-width="2" />
+      <circle cx="12" cy="12" r="4" fill="none" stroke="#e8c48a" stroke-width="2" />
+      <circle cx="12" cy="12" r="1.6" fill="#e8c48a" />
+    </symbol>
+    <symbol id="icon-skull" viewBox="0 0 24 24">
+      <path d="M12 3c5 0 8 3.4 8 7.5 0 2.6-1.4 4.8-3.5 6v2.2c0 .7-.6 1.3-1.3 1.3H8.8c-.7 0-1.3-.6-1.3-1.3V16.5C5.4 15.3 4 13.1 4 10.5 4 6.4 7 3 12 3z" fill="#f0d7b0" />
+      <circle cx="9" cy="11" r="1.7" fill="#2a1408" />
+      <circle cx="15" cy="11" r="1.7" fill="#2a1408" />
+      <rect x="11" y="14" width="2" height="3" rx="0.6" fill="#2a1408" />
+    </symbol>
+    <symbol id="icon-toilet" viewBox="0 0 80 90">
+      <path d="M18 8h44c4 0 7 3 7 7v10H11V15c0-4 3-7 7-7z" fill="none" stroke="#3d2612" stroke-width="3" />
+      <path d="M14 28h52c2 8 2 16-4 24-6 8-18 14-22 14s-16-6-22-14c-6-8-6-16-4-24z" fill="none" stroke="#3d2612" stroke-width="3" />
+      <path d="M30 68v10c0 6 6 10 10 10s10-4 10-10V68" fill="none" stroke="#3d2612" stroke-width="3" />
+    </symbol>
+  </svg>
+
   <div id="overlay">
     <div id="menu">
-      <h1>💩 Poop Shooter FPS 💩</h1>
-      <p class="tagline">Shoot poop. Destroy enemy poop. Survive.</p>
-      <div class="controls">
-        <p><kbd>W A S D</kbd> Move</p>
-        <p><kbd>Mouse</kbd> Look &amp; aim</p>
-        <p><kbd>Click</kbd> Shoot poop</p>
-        <p><kbd>Shift</kbd> Sprint</p>
+      <div class="menu-card">
+        <div class="logo">
+          <div class="logo-row">
+            <svg class="mascot mascot-left" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smile" /></svg>
+            <div class="logo-poop-wrap">
+              <h1 class="logo-poop">
+                <span class="lp">P</span><span class="lo">O<svg class="logo-coil" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-swirl" /></svg></span><span class="lo">O</span><span class="lp">P</span>
+              </h1>
+            </div>
+            <svg class="mascot mascot-right" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smile" /></svg>
+          </div>
+          <h2 class="logo-shooter">SHOOTER</h2>
+          <div class="logo-fps">
+            <span class="splat splat-l"></span>
+            <span class="fps-badge">FPS</span>
+            <span class="splat splat-r"></span>
+          </div>
+        </div>
+        <p class="tagline">Shoot poop. Destroy enemy poop. Survive.</p>
+        <button id="start-btn">ENTER THE BROWN ZONE</button>
+        <button id="loadout-btn" class="btn-secondary menu-secondary">LOADOUT</button>
+        <button id="dev-menu-btn" class="btn-secondary menu-secondary">DEV (`)</button>
+        <p id="loadout-summary" class="loadout-summary">Start: Rifle · Extra: None</p>
       </div>
-      <button id="start-btn">Enter the Brown Zone</button>
+
+      <div class="controls-bar" aria-label="Controls">
+        <div class="ctrl">
+          <div class="keys-wasd">
+            <span class="key k-w">W</span>
+            <span class="key k-a">A</span>
+            <span class="key k-s">S</span>
+            <span class="key k-d">D</span>
+          </div>
+          <span class="ctrl-label">MOVE</span>
+        </div>
+        <div class="ctrl">
+          <svg class="ctrl-icon" viewBox="0 0 32 40" aria-hidden="true"><use href="#icon-mouse" /></svg>
+          <span class="ctrl-label">AIM</span>
+        </div>
+        <div class="ctrl">
+          <svg class="ctrl-icon" viewBox="0 0 32 40" aria-hidden="true"><use href="#icon-mouse-click" /></svg>
+          <span class="pad-chip">RT</span>
+          <span class="ctrl-label">SHOOT</span>
+        </div>
+        <div class="ctrl">
+          <span class="key key-shift">SHIFT</span>
+          <span class="ctrl-or">/</span>
+          <span class="pad-chip">B</span>
+          <span class="ctrl-label">SPRINT</span>
+        </div>
+        <div class="ctrl">
+          <span class="key">SPACE</span>
+          <span class="ctrl-or">/</span>
+          <span class="pad-chip">A</span>
+          <span class="ctrl-label">JUMP</span>
+        </div>
+        <div class="ctrl">
+          <span class="key">RMB</span>
+          <span class="ctrl-or">/</span>
+          <span class="pad-chip">L2</span>
+          <span class="ctrl-label">ZOOM</span>
+        </div>
+      </div>
     </div>
+
     <div id="game-over" class="hidden">
-      <h2>You Got Flushed!</h2>
-      <p>Score: <span id="final-score">0</span></p>
-      <button id="restart-btn">Try Again</button>
+      <svg class="go-peek peek-left" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smirk" /></svg>
+      <svg class="go-peek peek-right-top" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smirk" /></svg>
+      <svg class="go-peek peek-bot-left" viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-smirk" /></svg>
+      <div class="go-board">
+        <svg class="toilet-mark" viewBox="0 0 80 90" aria-hidden="true"><use href="#icon-toilet" /></svg>
+        <h2 class="go-title">YOU GOT FLUSHED!</h2>
+        <p class="go-score-label">SCORE:</p>
+        <p class="go-score" id="final-score">0</p>
+        <div class="go-stats">
+          <div class="go-stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-target" /></svg>
+            <span class="go-stat-label">WAVE REACHED</span>
+            <strong id="final-wave">1</strong>
+          </div>
+          <div class="go-stat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-skull" /></svg>
+            <span class="go-stat-label">TOTAL KILLS</span>
+            <strong id="final-kills">0</strong>
+          </div>
+        </div>
+        <button id="restart-btn">TRY AGAIN</button>
+        <button id="menu-btn" class="btn-secondary">MAIN MENU</button>
+      </div>
+    </div>
+
+    <div id="paused" class="hidden" role="dialog" aria-label="Paused">
+      <div class="pause-card">
+        <h2 class="pause-title">PAUSED</h2>
+        <button type="button" id="pause-resume-btn">RESUME</button>
+        <button type="button" id="pause-menu-btn" class="btn-secondary">MAIN MENU</button>
+        <p class="pause-hint">Esc / Start · Resume relocks aim</p>
+      </div>
+    </div>
+
+    <div id="loadout" class="hidden" aria-modal="true" role="dialog" aria-labelledby="loadout-title">
+      <div class="loadout-panel">
+        <h2 id="loadout-title">LOADOUT</h2>
+        <p class="loadout-sub">Pick your starter gun — keyboard, click, or gamepad</p>
+
+        <h3 class="loadout-section-label">Starting Gun</h3>
+        <div class="loadout-toolbar">
+          <div id="loadout-tabs" class="loadout-tabs" role="tablist" aria-label="Weapon archetype"></div>
+          <button type="button" id="loadout-random" class="btn-secondary loadout-random">RANDOM</button>
+        </div>
+        <div id="loadout-guns" class="loadout-gun-list" role="listbox" aria-label="Starting gun"></div>
+
+        <h3 class="loadout-section-label">Starting Extra <span>(optional)</span></h3>
+        <div id="loadout-extras" class="loadout-grid loadout-extras" role="listbox" aria-label="Starting extra"></div>
+
+        <div class="loadout-actions">
+          <button type="button" id="loadout-back" class="btn-secondary">BACK</button>
+          <button type="button" id="loadout-confirm">CONFIRM</button>
+          <button type="button" id="loadout-start">START MATCH</button>
+        </div>
+        <p class="loadout-hint">Tabs filter archetype · ↑↓ scroll list · ←→ extras · Enter confirm · A gamepad</p>
+      </div>
     </div>
   </div>
 
   <div id="hud" class="hidden">
-    <div id="health-panel">
-      <span class="heart" aria-hidden="true">❤️</span>
-      <div id="health-bar">
-        <div id="health-fill"></div>
+    <div id="damage-vignette" aria-hidden="true"></div>
+
+    <!-- Gameplay mockup HUD -->
+    <div id="play-hud">
+      <div id="health-panel">
+        <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart" /></svg>
+        <div id="health-bar">
+          <div id="health-fill"></div>
+          <span id="health-text">100</span>
+        </div>
       </div>
-      <span id="health-text">100</span>
+      <div id="stats">
+        <div class="stat"><span class="label">Score</span><strong id="score" class="stat-score">0</strong></div>
+        <div class="stat"><span class="label">Wave</span><strong id="wave" class="stat-wave">1</strong></div>
+        <div class="stat"><span class="label">Kills</span><strong id="kills" class="stat-kills">0</strong></div>
+      </div>
+        <div id="ammo-panel">
+        <div class="ammo-main">
+          <div class="ammo-meta">
+            <span id="weapon-label">RIFLE</span>
+            <strong id="ammo-text">12/96</strong>
+          </div>
+          <div class="ammo-bullets" aria-hidden="true"><span></span><span></span><span></span></div>
+        </div>
+        <div id="reload-bar" class="hidden" aria-hidden="true"><div id="reload-fill"></div></div>
+        <span id="reload-label" class="hidden">RELOADING</span>
+      </div>
+      <div id="minimap-wrap">
+        <canvas id="minimap" width="140" height="140"></canvas>
+      </div>
+      <div id="wave-toast" class="hidden" aria-live="polite">WAVE <span id="wave-toast-num">1</span></div>
+      <div id="pickup-toast" class="hidden" aria-live="polite"></div>
+      <div id="god-badge" class="hidden" aria-live="polite">GOD</div>
+      <div id="crosshair"><span></span><span></span></div>
+      <div id="hit-marker" aria-hidden="true"></div>
     </div>
-    <div id="stats">
-      <div class="stat"><span class="label">Score</span><strong id="score">0</strong></div>
-      <div class="stat"><span class="label">Wave</span><strong id="wave">1</strong></div>
-      <div class="stat"><span class="label">Kills</span><strong id="kills">0</strong></div>
+
+    <div id="dev-panel" class="hidden" role="dialog" aria-label="Developer cheats">
+      <div class="dev-head">
+        <strong>DEV</strong>
+        <span class="dev-keyhint">` toggle</span>
+      </div>
+      <button type="button" class="dev-btn" data-cheat="god"><span class="dev-num">1</span> God mode</button>
+      <button type="button" class="dev-btn" data-cheat="ammo"><span class="dev-num">2</span> Infinite ammo</button>
+      <button type="button" class="dev-btn" data-cheat="guns"><span class="dev-num">3</span> Unlock all guns</button>
+      <button type="button" class="dev-btn" data-cheat="wave"><span class="dev-num">4</span> Skip wave</button>
+      <button type="button" class="dev-btn" data-cheat="heal"><span class="dev-num">5</span> Heal + refill</button>
+      <p class="dev-foot">Click or 1–5 · Esc/` close</p>
     </div>
-    <div id="crosshair"><span></span><span></span></div>
+
+    <div id="reward-overlay" class="hidden" aria-modal="true" role="dialog" aria-labelledby="reward-title">
+      <div class="reward-panel">
+        <h2 id="reward-title">WAVE CLEARED</h2>
+        <p class="reward-sub">Pick your power-ups — stacking allowed</p>
+        <div id="reward-cards" class="reward-cards"></div>
+        <button type="button" id="reward-confirm">TAKE ALL <span class="reward-keys">Enter / Space / A</span></button>
+        <p class="reward-hint">Click cards or confirm · Gamepad A · Esc closes nothing (must pick)</p>
+      </div>
+    </div>
+
+    <!-- Game-over mockup chrome (shown with bathroom + board) -->
+    <div id="go-hud" class="hidden">
+      <div id="go-wave-badge">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#poop-swirl" /></svg>
+        <span>WAVE <strong id="go-wave-text">1/10</strong></span>
+      </div>
+      <div id="go-minimap-wrap">
+        <canvas id="go-minimap" width="120" height="120"></canvas>
+      </div>
+      <div id="go-health-panel">
+        <svg class="heart" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-heart" /></svg>
+        <div id="go-health-bar"><div id="go-health-fill"></div></div>
+        <span id="go-health-text">0</span>
+      </div>
+      <div id="go-ammo-panel">
+        <strong id="go-ammo-text">12/96</strong>
+        <div class="ammo-bullets" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+    </div>
   </div>
 
   <canvas id="game-canvas"></canvas>
+  <div id="bloom-flash" aria-hidden="true"></div>
 
   <script type="importmap">
     {
