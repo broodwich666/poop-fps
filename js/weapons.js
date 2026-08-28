@@ -48,15 +48,15 @@ const ARCHETYPE_BASES = {
     desc: "Arcing stink bomb. Cook or tap-throw. Splash pop.",
     magSize: 3, reloadTime: 1.65, fireRate: 0.72, pellets: 1, spread: 0.02,
     projectileSpeed: 14, projectileLife: 4.5, throwArc: 9.5, fuseTime: 1.75,
-    splashRadius: 4.2, splashDamage: 2.8, selfDamageScale: 0.28, damage: 0, bulletScale: 1,
+    splashRadius: 7.8, splashDamage: 11, selfDamageScale: 0.22, damage: 0, bulletScale: 1,
     windup: 0, recoil: 1.1, shake: 0.06, color: 0x6a4a18, modelScale: 1,
   },
   rocket: {
     archetype: "rocket", projectileType: "rocket", name: "U-Launch", short: "ROCKET",
     desc: "Fat rocket tube. Slow shot, big boom splash.",
     magSize: 4, reloadTime: 2.35, fireRate: 0.95, pellets: 1, spread: 0.012,
-    projectileSpeed: 22, projectileLife: 3.2, splashRadius: 5.5, splashDamage: 4.2,
-    selfDamageScale: 0.38, damage: 2.5, bulletScale: 1, windup: 0,
+    projectileSpeed: 22, projectileLife: 3.2, splashRadius: 9.2, splashDamage: 14,
+    selfDamageScale: 0.3, damage: 2.5, bulletScale: 1, windup: 0,
     recoil: 1.85, shake: 0.11, color: 0x5a4020, modelScale: 1,
   },
   mine: {
@@ -171,8 +171,10 @@ function buildAllWeapons() {
         modelScale: +(base.modelScale * variantMul(1, i, 0.06)).toFixed(2),
       };
       if (base.splashRadius) {
-        weapons[id].splashRadius = +(base.splashRadius * variantMul(1, i, 0.1)).toFixed(2);
-        weapons[id].splashDamage = +(base.splashDamage * variantMul(1, i, 0.12)).toFixed(2);
+        const splashMul = i === 0 ? 1 : variantMul(1, i, 0.1);
+        const dmgMul = i === 0 ? 1 : variantMul(1, i, 0.12);
+        weapons[id].splashRadius = +(base.splashRadius * splashMul).toFixed(2);
+        weapons[id].splashDamage = +(base.splashDamage * dmgMul).toFixed(2);
       }
       if (base.pellets > 1) {
         weapons[id].pellets = Math.max(4, Math.round(base.pellets * variantMul(1, i, 0.08)));

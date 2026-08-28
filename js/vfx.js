@@ -370,30 +370,32 @@ export function spawnMineArmedVfx(pos) {
 export function spawnExplosionVfx(arch, pos, radius = 4, { shakeCallback = null } = {}) {
   const accent = ARCHETYPE_ACCENTS[arch] || ARCHETYPE_ACCENTS.grenade;
   const shakeByArch = {
-    rocket: 0.16, grenade: 0.1, mine: 0.11, puddle: 0.06, rifle: 0.04,
+    rocket: 0.24, grenade: 0.18, mine: 0.14, puddle: 0.08, rifle: 0.04,
   };
   if (shakeCallback) shakeCallback(shakeByArch[arch] ?? 0.08);
 
   if (arch === "rocket") {
-    spawnShockwave(pos, { color: 0xff6622, maxScale: radius * 1.8, life: 0.55 });
-    spawnShockwave(pos, { color: 0xffaa44, maxScale: radius * 1.2, life: 0.35, y: 0.16 });
-    spawnFlash(pos, 0xff4400, 6, 0.2);
-    setBloomFlash(0.55, "255,100,40");
-    for (let i = 0; i < 18; i++) {
+    spawnShockwave(pos, { color: 0x6b3a10, maxScale: radius * 2.4, life: 0.65 });
+    spawnShockwave(pos, { color: 0x9b5523, maxScale: radius * 1.7, life: 0.48, y: 0.14 });
+    spawnShockwave(pos, { color: 0xff6622, maxScale: radius * 1.1, life: 0.32, y: 0.17 });
+    spawnFlash(pos, 0xc4782a, 7.5, 0.24);
+    setBloomFlash(0.62, "180,90,40");
+    for (let i = 0; i < 28; i++) {
       const a = Math.random() * Math.PI * 2;
-      const sp = 4 + Math.random() * 10;
+      const sp = 5 + Math.random() * 12;
+      const brown = Math.random() > 0.35 ? 0x8b4a1c : 0xc4782a;
       spawnParticle(pos, {
-        color: Math.random() > 0.4 ? 0xff6622 : 0xffcc44,
-        scale: 0.25 + Math.random() * 0.4,
-        life: 0.5 + Math.random() * 0.3,
-        velocity: new THREE.Vector3(Math.cos(a) * sp, 3 + Math.random() * 6, Math.sin(a) * sp),
+        color: brown,
+        scale: 0.3 + Math.random() * 0.55,
+        life: 0.55 + Math.random() * 0.35,
+        velocity: new THREE.Vector3(Math.cos(a) * sp, 3 + Math.random() * 7, Math.sin(a) * sp),
       });
     }
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 12; i++) {
       spawnParticle(pos, {
-        color: 0x666666, scale: 0.5, life: 0.8,
-        velocity: new THREE.Vector3((Math.random() - 0.5) * 3, 4 + Math.random() * 4, (Math.random() - 0.5) * 3),
-        fade: 0.4,
+        color: 0x666666, scale: 0.45 + Math.random() * 0.35, life: 0.9,
+        velocity: new THREE.Vector3((Math.random() - 0.5) * 4, 5 + Math.random() * 5, (Math.random() - 0.5) * 4),
+        fade: 0.45,
       });
     }
     return;
@@ -416,16 +418,23 @@ export function spawnExplosionVfx(arch, pos, radius = 4, { shakeCallback = null 
   }
 
   if (arch === "grenade") {
-    spawnShockwave(pos, { color: 0x88cc44, maxScale: radius * 1.6, life: 0.48 });
-    spawnFlash(pos, 0xaaff44, 3.5, 0.16);
-    setBloomFlash(0.38, "140,220,80");
-    for (let i = 0; i < 12; i++) {
+    spawnShockwave(pos, { color: 0x5a3010, maxScale: radius * 2.2, life: 0.58 });
+    spawnShockwave(pos, { color: 0x9b5523, maxScale: radius * 1.5, life: 0.42, y: 0.14 });
+    spawnShockwave(pos, { color: 0xc4782a, maxScale: radius * 0.95, life: 0.28, y: 0.16 });
+    spawnFlash(pos, 0xb8651d, 5, 0.2);
+    setBloomFlash(0.48, "160,90,45");
+    for (let i = 0; i < 22; i++) {
       const a = Math.random() * Math.PI * 2;
+      const brown = Math.random() > 0.3 ? 0x7a4a18 : 0xb8651d;
       spawnParticle(pos, {
-        color: Math.random() > 0.5 ? 0x88cc44 : 0xccaa44,
-        scale: 0.2 + Math.random() * 0.35,
-        life: 0.4 + Math.random() * 0.25,
-        velocity: new THREE.Vector3(Math.cos(a) * (4 + Math.random() * 5), 2.5 + Math.random() * 4, Math.sin(a) * (4 + Math.random() * 5)),
+        color: brown,
+        scale: 0.22 + Math.random() * 0.45,
+        life: 0.45 + Math.random() * 0.3,
+        velocity: new THREE.Vector3(
+          Math.cos(a) * (5 + Math.random() * 6),
+          2.5 + Math.random() * 5,
+          Math.sin(a) * (5 + Math.random() * 6),
+        ),
       });
     }
     return;
